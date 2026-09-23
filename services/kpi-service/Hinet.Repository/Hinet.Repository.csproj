@@ -1,0 +1,124 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AuthConstractCategoryRepository\**" />
+    <Compile Remove="AuthenticationContractRepository\**" />
+    <Compile Remove="BannerRepository\**" />
+    <Compile Remove="BCBaoCaoDoiTuongRepository\**" />
+    <Compile Remove="BCBaoCaoRepository\**" />
+    <Compile Remove="BCDotBaoCaoRepository\**" />
+    <Compile Remove="BieuMauRepository\**" />
+    <Compile Remove="CompanyInfoRepository\**" />
+    <Compile Remove="DangKyXemLogRepository\**" />
+    <Compile Remove="DangKyXemNenTangRepository\**" />
+    <Compile Remove="DangKyXemRepository\**" />
+    <Compile Remove="DvcSyncFileMapRepository\**" />
+    <Compile Remove="DvcSyncLogRepository\**" />
+    <Compile Remove="EnterprisePlatformItemRepository\**" />
+    <Compile Remove="HistoryChangedAuthencationContractRepository\**" />
+    <Compile Remove="HolidayConfigRepository\**" />
+    <Compile Remove="HomeBlockRepository\**" />
+    <Compile Remove="MauBaoCaoRepository\**" />
+    <Compile Remove="MauTraLoiRepository\**" />
+    <Compile Remove="NavMenuRepository\**" />
+    <Compile Remove="NenTangViPhamRepository\**" />
+    <Compile Remove="NguoiDuyetBaoCaoRepository\**" />
+    <Compile Remove="PhanAnhNenTangRepository\**" />
+    <Compile Remove="PlatformManageHistoryRepository\**" />
+    <Compile Remove="PlatformManageRepository\**" />
+    <Compile Remove="PlatformProductItemRepository\**" />
+    <Compile Remove="ProcessingDeadlineConfigRepository\**" />
+    <Compile Remove="RutTienKyQuyHistoryRepository\**" />
+    <Compile Remove="RutTienKyQuyRepository\**" />
+    <Compile Remove="SignatureInfoRepository\**" />
+    <Compile Remove="TinTucRepository\**" />
+    <Compile Remove="VanBanPhapLuatRepository\**" />
+    <Compile Remove="VuViecNenTangRepository\**" />
+    <Compile Remove="VuViecPhanAnhRepository\**" />
+    <Compile Remove="VuViecTraoDoiRepository\**" />
+    <Compile Remove="WeeklyConfigRepository\**" />
+    <EmbeddedResource Remove="AuthConstractCategoryRepository\**" />
+    <EmbeddedResource Remove="AuthenticationContractRepository\**" />
+    <EmbeddedResource Remove="BannerRepository\**" />
+    <EmbeddedResource Remove="BCBaoCaoDoiTuongRepository\**" />
+    <EmbeddedResource Remove="BCBaoCaoRepository\**" />
+    <EmbeddedResource Remove="BCDotBaoCaoRepository\**" />
+    <EmbeddedResource Remove="BieuMauRepository\**" />
+    <EmbeddedResource Remove="CompanyInfoRepository\**" />
+    <EmbeddedResource Remove="DangKyXemLogRepository\**" />
+    <EmbeddedResource Remove="DangKyXemNenTangRepository\**" />
+    <EmbeddedResource Remove="DangKyXemRepository\**" />
+    <EmbeddedResource Remove="DvcSyncFileMapRepository\**" />
+    <EmbeddedResource Remove="DvcSyncLogRepository\**" />
+    <EmbeddedResource Remove="EnterprisePlatformItemRepository\**" />
+    <EmbeddedResource Remove="HistoryChangedAuthencationContractRepository\**" />
+    <EmbeddedResource Remove="HolidayConfigRepository\**" />
+    <EmbeddedResource Remove="HomeBlockRepository\**" />
+    <EmbeddedResource Remove="MauBaoCaoRepository\**" />
+    <EmbeddedResource Remove="MauTraLoiRepository\**" />
+    <EmbeddedResource Remove="NavMenuRepository\**" />
+    <EmbeddedResource Remove="NenTangViPhamRepository\**" />
+    <EmbeddedResource Remove="NguoiDuyetBaoCaoRepository\**" />
+    <EmbeddedResource Remove="PhanAnhNenTangRepository\**" />
+    <EmbeddedResource Remove="PlatformManageHistoryRepository\**" />
+    <EmbeddedResource Remove="PlatformManageRepository\**" />
+    <EmbeddedResource Remove="PlatformProductItemRepository\**" />
+    <EmbeddedResource Remove="ProcessingDeadlineConfigRepository\**" />
+    <EmbeddedResource Remove="RutTienKyQuyHistoryRepository\**" />
+    <EmbeddedResource Remove="RutTienKyQuyRepository\**" />
+    <EmbeddedResource Remove="SignatureInfoRepository\**" />
+    <EmbeddedResource Remove="TinTucRepository\**" />
+    <EmbeddedResource Remove="VanBanPhapLuatRepository\**" />
+    <EmbeddedResource Remove="VuViecNenTangRepository\**" />
+    <EmbeddedResource Remove="VuViecPhanAnhRepository\**" />
+    <EmbeddedResource Remove="VuViecTraoDoiRepository\**" />
+    <EmbeddedResource Remove="WeeklyConfigRepository\**" />
+    <None Remove="AuthConstractCategoryRepository\**" />
+    <None Remove="AuthenticationContractRepository\**" />
+    <None Remove="BannerRepository\**" />
+    <None Remove="BCBaoCaoDoiTuongRepository\**" />
+    <None Remove="BCBaoCaoRepository\**" />
+    <None Remove="BCDotBaoCaoRepository\**" />
+    <None Remove="BieuMauRepository\**" />
+    <None Remove="CompanyInfoRepository\**" />
+    <None Remove="DangKyXemLogRepository\**" />
+    <None Remove="DangKyXemNenTangRepository\**" />
+    <None Remove="DangKyXemRepository\**" />
+    <None Remove="DvcSyncFileMapRepository\**" />
+    <None Remove="DvcSyncLogRepository\**" />
+    <None Remove="EnterprisePlatformItemRepository\**" />
+    <None Remove="HistoryChangedAuthencationContractRepository\**" />
+    <None Remove="HolidayConfigRepository\**" />
+    <None Remove="HomeBlockRepository\**" />
+    <None Remove="MauBaoCaoRepository\**" />
+    <None Remove="MauTraLoiRepository\**" />
+    <None Remove="NavMenuRepository\**" />
+    <None Remove="NenTangViPhamRepository\**" />
+    <None Remove="NguoiDuyetBaoCaoRepository\**" />
+    <None Remove="PhanAnhNenTangRepository\**" />
+    <None Remove="PlatformManageHistoryRepository\**" />
+    <None Remove="PlatformManageRepository\**" />
+    <None Remove="PlatformProductItemRepository\**" />
+    <None Remove="ProcessingDeadlineConfigRepository\**" />
+    <None Remove="RutTienKyQuyHistoryRepository\**" />
+    <None Remove="RutTienKyQuyRepository\**" />
+    <None Remove="SignatureInfoRepository\**" />
+    <None Remove="TinTucRepository\**" />
+    <None Remove="VanBanPhapLuatRepository\**" />
+    <None Remove="VuViecNenTangRepository\**" />
+    <None Remove="VuViecPhanAnhRepository\**" />
+    <None Remove="VuViecTraoDoiRepository\**" />
+    <None Remove="WeeklyConfigRepository\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hinet.Model\Hinet.Model.csproj" />
+  </ItemGroup>
+
+</Project>

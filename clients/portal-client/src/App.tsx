@@ -7,14 +7,21 @@ import {
   ExternalLink, 
   LogOut, 
   Search, 
-  ArrowRight, 
+  Plus, 
   CheckCircle2, 
   AlertCircle, 
   PackageCheck,
-  Layers,
-  Database,
-  Radio,
-  Compass
+  Users,
+  Key,
+  Shield,
+  RefreshCw,
+  Lock,
+  Unlock,
+  Trash2,
+  UserCheck,
+  UserX,
+  X,
+  Layers
 } from 'lucide-react';
 
 interface AppItem {
@@ -29,7 +36,26 @@ interface AppItem {
   servicePort: string;
   clientUrl: string;
   dbName: string;
-  isPrimary?: boolean;
+  requiredRole?: string;
+}
+
+interface UserItem {
+  id: string;
+  userName: string;
+  fullName: string;
+  email?: string;
+  phoneNumber?: string;
+  isActive: boolean;
+  createdDate: string;
+  roles: string[];
+}
+
+interface RoleItem {
+  id: string;
+  code: string;
+  name: string;
+  type?: string;
+  isActive: boolean;
 }
 
 const APPS: AppItem[] = [
@@ -37,7 +63,7 @@ const APPS: AppItem[] = [
     id: 'asset',
     name: 'Hệ Thống Quản Lý Tài Sản',
     category: 'Cơ Sở Vật Chất & Thiết Bị',
-    description: 'Quản lý vòng đời tài sản, trang thiết bị văn phòng, theo dõi khấu hao, cấp phát và lịch bảo dưỡng tập trung.',
+    description: 'Quản lý vòng đời tài sản, trang thiết bị văn phòng, theo dõi khấu hao, cấp phát và lịch bảo dưỡng.',
     icon: PackageCheck,
     gradient: 'from-amber-500 to-rose-600',
     borderColor: 'rgba(245, 158, 11, 0.4)',
@@ -45,13 +71,13 @@ const APPS: AppItem[] = [
     servicePort: '5005',
     clientUrl: 'http://localhost:9797/auth/sso-callback',
     dbName: 'Base_TaiSan',
-    isPrimary: true
+    requiredRole: 'ROLE_TAISAN'
   },
   {
     id: 'kpi',
     name: 'Hệ Thống Đánh Giá KPI',
-    category: 'Nghiệp Vụ & Đánh Giá',
-    description: 'Lập kế hoạch, theo dõi tiến độ nhiệm vụ và tổ chức hội đồng chấm điểm thi đua cán bộ.',
+    category: 'Nghiệp Vụ & Đánh Giá Thi Đua',
+    description: 'Lập kế hoạch, theo dõi tiến độ nhiệm vụ và tổ chức hội đồng chấm điểm thi đua cán bộ, công chức.',
     icon: BarChart3,
     gradient: 'from-blue-600 to-indigo-600',
     borderColor: 'rgba(99, 102, 241, 0.4)',
@@ -59,7 +85,7 @@ const APPS: AppItem[] = [
     servicePort: '5003',
     clientUrl: 'http://localhost:9696/auth/sso-callback',
     dbName: 'Base_DB',
-    isPrimary: true
+    requiredRole: 'ROLE_KPI'
   },
   {
     id: 'room',
@@ -68,24 +94,12 @@ const APPS: AppItem[] = [
     description: 'Đăng tin phòng trọ, cấu hình bảng giá tin VIP, nạp tiền ví tài khoản và khuyến mại bậc thang.',
     icon: Home,
     gradient: 'from-emerald-500 to-teal-600',
-    borderColor: 'rgba(16, 185, 129, 0.4)',
+    borderColor: 'rgba(168, 85, 247, 0.4)',
     badge: 'room-service:5002',
     servicePort: '5002',
     clientUrl: 'http://localhost:4000/auth/sso-callback',
-    dbName: 'Room_DB'
-  },
-  {
-    id: 'identity',
-    name: 'Quản Trị Người Dùng & Phân Quyền',
-    category: 'Hệ Thống & Bảo Mật',
-    description: 'Quản trị danh sách tài khoản cán bộ, gán vai trò, phân quyền chức năng và kiểm soát JWT tập trung.',
-    icon: ShieldCheck,
-    gradient: 'from-purple-600 to-violet-700',
-    borderColor: 'rgba(168, 85, 247, 0.4)',
-    badge: 'identity-service:5001',
-    servicePort: '5001',
-    clientUrl: 'http://localhost:5000/api/auth/ping',
-    dbName: 'Identity_DB'
+    dbName: 'Room_DB',
+    requiredRole: 'ROLE_ROOM'
   },
   {
     id: 'files',
@@ -93,57 +107,111 @@ const APPS: AppItem[] = [
     category: 'Tài Nguyên & Media',
     description: 'Lưu trữ tài liệu đính kèm, văn bản pháp luật, biểu mẫu báo cáo và xử lý media tập trung.',
     icon: FolderGit2,
-    gradient: 'from-amber-500 to-orange-600',
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    gradient: 'from-purple-500 to-indigo-600',
+    borderColor: 'rgba(168, 85, 247, 0.4)',
     badge: 'file-service:5004',
     servicePort: '5004',
     clientUrl: 'http://localhost:5004/api/files/ping',
-    dbName: 'Mongo / File Server'
+    dbName: 'MinIO / Server'
   }
 ];
 
+const API_BASE = 'http://localhost:5000/api/auth';
+
 export default function App() {
+  // Auth State
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('sso_portal_token'));
-  const [user, setUser] = useState<{ username: string; fullName: string; role: string } | null>(() => {
+  const [user, setUser] = useState<{ username: string; fullName: string; role: string; roles: string[] } | null>(() => {
     const saved = localStorage.getItem('sso_portal_user');
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Login Form
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('123456');
-  const [targetSoftware, setTargetSoftware] = useState<string>('hub'); // 'hub' | 'asset' | 'kpi' | 'room'
-  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [redirectNotice, setRedirectNotice] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Đọc query param '?app=asset' hoặc '?app=kpi'
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const appParam = params.get('app');
-    if (appParam && ['asset', 'kpi', 'room'].includes(appParam)) {
-      setTargetSoftware(appParam);
-    }
-  }, []);
+  // Active Tab: 'launcher' | 'users' | 'roles'
+  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles'>('launcher');
 
-  const handleLaunchApp = (app: AppItem, sameTab = false) => {
-    const authToken = token || localStorage.getItem('sso_portal_token');
-    if (!authToken) return;
+  // Data States
+  const [userList, setUserList] = useState<UserItem[]>([]);
+  const [roleList, setRoleList] = useState<RoleItem[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [roleSearch, setRoleSearch] = useState('');
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
-    setRedirectNotice(`Đang chuyển hướng SSO tới ${app.name} (${app.clientUrl})...`);
+  // Modals
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [isAssignRoleOpen, setIsAssignRoleOpen] = useState(false);
+  const [isResetPassOpen, setIsResetPassOpen] = useState(false);
+  const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
 
-    const targetUrl = `${app.clientUrl}?token=${encodeURIComponent(authToken)}`;
+  // Form Fields
+  const [newUserName, setNewUserName] = useState('');
+  const [newFullName, setNewFullName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newPassword, setNewPassword] = useState('123456');
+  const [newSelectedRoles, setNewSelectedRoles] = useState<string[]>(['USER']);
 
-    setTimeout(() => {
-      if (sameTab) {
-        window.location.href = targetUrl;
-      } else {
-        window.open(targetUrl, '_blank');
-      }
-      setRedirectNotice(null);
-    }, 450);
+  const [assignedRoles, setAssignedRoles] = useState<string[]>([]);
+  const [resetPassValue, setResetPassValue] = useState('123456');
+
+  const [newRoleCode, setNewRoleCode] = useState('');
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleType, setNewRoleType] = useState('GENERAL');
+
+  // Show Toast
+  const notify = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 3500);
   };
 
+  // Fetch Users & Roles
+  const fetchUsers = async () => {
+    try {
+      setIsDataLoading(true);
+      const res = await fetch(`${API_BASE}/users`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setUserList(json.data);
+        }
+      }
+    } catch (_) {
+    } finally {
+      setIsDataLoading(false);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/roles`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setRoleList(json.data);
+        }
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (token) {
+      fetchUsers();
+      fetchRoles();
+    }
+  }, [token]);
+
+  // Login Handle
   const handleLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setIsLoading(true);
@@ -151,56 +219,42 @@ export default function App() {
 
     try {
       let activeToken = '';
-      const userData = {
-        username: username,
-        fullName: username === 'admin' ? 'Quản Trị Viên Hệ Thống' : 'Cán Bộ ' + username,
-        role: username === 'admin' ? 'System Administrator' : 'Chuyên Viên Nghiệp Vụ',
-      };
+      let rolesArr = ['ADMIN', 'ROLE_TAISAN', 'ROLE_KPI'];
+      let fullName = username === 'admin' ? 'Quản Trị Viên Toàn Hệ Thống' : 'Cán Bộ ' + username;
 
       try {
-        const authUrls = [
-          '/api/auth/login',
-          'http://localhost:80/api/auth/login',
-          'http://localhost:5000/api/auth/login',
-        ];
-        for (const authUrl of authUrls) {
-          try {
-            const res = await fetch(authUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username, password }),
-            });
-            if (res.ok) {
-              const json = await res.json();
-              if (json.success && (json.data?.token || json.data?.accessToken)) {
-                activeToken = json.data.token || json.data.accessToken;
-                break;
-              }
-            }
-          } catch (_) {}
+        const res = await fetch(`${API_BASE}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && (json.data?.token || json.data?.accessToken)) {
+            activeToken = json.data.token || json.data.accessToken;
+            if (json.data.fullName) fullName = json.data.fullName;
+            if (json.data.roles) rolesArr = json.data.roles;
+          }
         }
-      } catch (err) {
-      }
+      } catch (_) {}
 
       if (!activeToken) {
         activeToken = `sso_jwt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       }
 
+      const userData = {
+        username: username,
+        fullName: fullName,
+        role: rolesArr[0] || 'ADMIN',
+        roles: rolesArr
+      };
+
       setToken(activeToken);
       setUser(userData);
       localStorage.setItem('sso_portal_token', activeToken);
       localStorage.setItem('sso_portal_user', JSON.stringify(userData));
-
-      // Điều hướng ngay tới phần mềm đích đã chọn (nếu không chọn 'hub')
-      if (targetSoftware !== 'hub') {
-        const found = APPS.find(a => a.id === targetSoftware);
-        if (found) {
-          handleLaunchApp(found, true);
-          return;
-        }
-      }
     } catch (err: any) {
-      setErrorMsg('Không thể xử lý đăng nhập. Vui lòng thử lại.');
+      setErrorMsg('Không thể đăng nhập. Vui lòng kiểm tra lại tài khoản.');
     } finally {
       setIsLoading(false);
     }
@@ -213,11 +267,200 @@ export default function App() {
     localStorage.removeItem('sso_portal_user');
   };
 
-  const filteredApps = APPS.filter(app => 
-    app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.dbName.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleLaunchApp = (app: AppItem, sameTab = false) => {
+    const authToken = token || localStorage.getItem('sso_portal_token');
+    if (!authToken) return;
+
+    const targetUrl = `${app.clientUrl}?token=${encodeURIComponent(authToken)}`;
+    if (sameTab) {
+      window.location.href = targetUrl;
+    } else {
+      window.open(targetUrl, '_blank');
+    }
+  };
+
+  // User Actions
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim()) {
+      notify('Vui lòng nhập tên đăng nhập', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userName: newUserName.trim(),
+          fullName: newFullName.trim() || newUserName.trim(),
+          email: newEmail.trim(),
+          phoneNumber: newPhone.trim(),
+          password: newPassword,
+          roleCodes: newSelectedRoles
+        })
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(`Tạo tài khoản "${newUserName}" thành công!`);
+        setIsCreateUserOpen(false);
+        setNewUserName('');
+        setNewFullName('');
+        setNewEmail('');
+        setNewPhone('');
+        setNewPassword('123456');
+        setNewSelectedRoles(['USER']);
+        fetchUsers();
+      } else {
+        notify(json.message || 'Lỗi tạo người dùng', 'error');
+      }
+    } catch (err) {
+      notify('Lỗi kết nối tới Identity Service', 'error');
+    }
+  };
+
+  const handleOpenAssignRoles = (u: UserItem) => {
+    setSelectedUser(u);
+    setAssignedRoles(u.roles || []);
+    setIsAssignRoleOpen(true);
+  };
+
+  const handleSaveAssignedRoles = async () => {
+    if (!selectedUser) return;
+    try {
+      const res = await fetch(`${API_BASE}/users/${selectedUser.id}/roles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ roleCodes: assignedRoles })
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(`Đã cập nhật vai trò cho "${selectedUser.userName}"!`);
+        setIsAssignRoleOpen(false);
+        fetchUsers();
+      } else {
+        notify(json.message || 'Lỗi phân quyền', 'error');
+      }
+    } catch (err) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
+  const handleToggleUserActive = async (u: UserItem) => {
+    try {
+      const res = await fetch(`${API_BASE}/users/${u.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(json.message || 'Cập nhật trạng thái thành công');
+        fetchUsers();
+      } else {
+        notify(json.message || 'Lỗi cập nhật', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/users/${selectedUser.id}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword: resetPassValue })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(`Đã đặt lại mật khẩu cho "${selectedUser.userName}" thành công!`);
+        setIsResetPassOpen(false);
+      } else {
+        notify(json.message || 'Lỗi đặt lại mật khẩu', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
+  // Role Actions
+  const handleCreateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRoleCode.trim() || !newRoleName.trim()) {
+      notify('Vui lòng nhập đầy đủ mã và tên vai trò', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/roles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code: newRoleCode.trim().toUpperCase(),
+          name: newRoleName.trim(),
+          type: newRoleType
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(`Tạo vai trò "${newRoleCode}" thành công!`);
+        setIsCreateRoleOpen(false);
+        setNewRoleCode('');
+        setNewRoleName('');
+        fetchRoles();
+      } else {
+        notify(json.message || 'Lỗi tạo vai trò', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
+  const handleDeleteRole = async (r: RoleItem) => {
+    if (!confirm(`Bạn có chắc muốn xóa vai trò "${r.name}" (${r.code})?`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/roles/${r.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify('Xóa vai trò thành công');
+        fetchRoles();
+      } else {
+        notify(json.message || 'Lỗi xóa vai trò', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
+  const filteredUsers = userList.filter(u => 
+    (u.userName && u.userName.toLowerCase().includes(userSearch.toLowerCase())) ||
+    (u.fullName && u.fullName.toLowerCase().includes(userSearch.toLowerCase())) ||
+    (u.email && u.email.toLowerCase().includes(userSearch.toLowerCase()))
+  );
+
+  const filteredRoles = roleList.filter(r => 
+    r.name.toLowerCase().includes(roleSearch.toLowerCase()) ||
+    r.code.toLowerCase().includes(roleSearch.toLowerCase())
   );
 
   // ----------------------------------------------------
@@ -245,153 +488,71 @@ export default function App() {
               Cổng Đăng Nhập Tập Trung (SSO)
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>
-              Đăng nhập 1 lần để chọn và mở các hệ thống phần mềm
+              Quản trị người dùng & Mở các phân hệ Microservices
             </p>
           </div>
 
           {errorMsg && (
             <div style={{ 
-              background: 'rgba(239, 68, 68, 0.12)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              padding: '12px 16px', 
+              background: 'rgba(239, 68, 68, 0.15)', 
               border: '1px solid rgba(239, 68, 68, 0.3)', 
-              color: '#f87171', 
-              padding: '10px 14px', 
               borderRadius: '10px', 
+              color: '#f87171', 
               fontSize: '13px', 
-              marginBottom: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              marginBottom: '20px' 
             }}>
-              <AlertCircle size={16} />
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
                 Tài khoản đăng nhập
               </label>
-              <input 
-                type="text" 
-                className="input-field" 
-                placeholder="Tên đăng nhập (ví dụ: admin)"
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Nhập tên đăng nhập (vd: admin)..."
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+            <div style={{ marginBottom: '22px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
                 Mật khẩu
               </label>
-              <input 
-                type="password" 
-                className="input-field" 
-                placeholder="Nhập mật khẩu"
+              <input
+                type="password"
+                className="input-field"
+                placeholder="Nhập mật khẩu..."
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>
 
-            {/* Mục tiêu phần mềm sau khi đăng nhập */}
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#a5b4fc', marginBottom: '8px' }}>
-                Đích đến sau khi đăng nhập thành công:
-              </label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px', 
-                  padding: '10px 12px', 
-                  borderRadius: '8px', 
-                  background: targetSoftware === 'asset' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${targetSoftware === 'asset' ? 'rgba(245, 158, 11, 0.5)' : 'rgba(255,255,255,0.08)'}`,
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}>
-                  <input 
-                    type="radio" 
-                    name="targetSoftware" 
-                    value="asset" 
-                    checked={targetSoftware === 'asset'}
-                    onChange={() => setTargetSoftware('asset')} 
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, color: targetSoftware === 'asset' ? '#fbbf24' : '#fff' }}>
-                      Quản Lý Tài Sản (:9797)
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cơ sở dữ liệu: Base_TaiSan</div>
-                  </div>
-                </label>
-
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px', 
-                  padding: '10px 12px', 
-                  borderRadius: '8px', 
-                  background: targetSoftware === 'kpi' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${targetSoftware === 'kpi' ? 'rgba(99, 102, 241, 0.5)' : 'rgba(255,255,255,0.08)'}`,
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}>
-                  <input 
-                    type="radio" 
-                    name="targetSoftware" 
-                    value="kpi" 
-                    checked={targetSoftware === 'kpi'}
-                    onChange={() => setTargetSoftware('kpi')} 
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, color: targetSoftware === 'kpi' ? '#818cf8' : '#fff' }}>
-                      Đánh Giá KPI (:9696)
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cơ sở dữ liệu: Base_DB</div>
-                  </div>
-                </label>
-
-                <label style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '10px', 
-                  padding: '8px 12px', 
-                  borderRadius: '8px', 
-                  background: targetSoftware === 'hub' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${targetSoftware === 'hub' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255,255,255,0.08)'}`,
-                  cursor: 'pointer',
-                  fontSize: '12.5px'
-                }}>
-                  <input 
-                    type="radio" 
-                    name="targetSoftware" 
-                    value="hub" 
-                    checked={targetSoftware === 'hub'}
-                    onChange={() => setTargetSoftware('hub')} 
-                  />
-                  <span style={{ color: 'var(--text-secondary)' }}>Mở Màn Hình Bàn Làm Việc (Hub Chọn Phần Mềm)</span>
-                </label>
-              </div>
-            </div>
-
-            <button 
-              type="submit" 
-              className="btn-primary" 
-              style={{ width: '100%', marginTop: '6px', padding: '13px' }}
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ width: '100%', height: '44px', fontSize: '15px' }}
               disabled={isLoading}
             >
-              {isLoading ? 'Đang xác thực...' : 'Đăng Nhập & Truy Cập'}
-              <ArrowRight size={18} />
+              {isLoading ? 'Đang xác thực...' : 'Đăng Nhập Hệ Thống'}
             </button>
           </form>
 
-          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Tài khoản mẫu: <span style={{ color: '#818cf8', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => { setUsername('admin'); setPassword('123456'); }}>admin / 123456</span>
-            </p>
+          <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid var(--border-card)', paddingTop: '16px' }}>
+            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+              Mặc định Admin: <strong>admin</strong> / <strong>123456</strong>
+            </span>
           </div>
         </div>
       </main>
@@ -399,299 +560,827 @@ export default function App() {
   }
 
   // ----------------------------------------------------
-  // Màn hình 2: Bàn Làm Việc Chọn Phần Mềm (App Launcher Hub)
+  // Màn hình 2: Portal Dashboard & Central Management
   // ----------------------------------------------------
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '14px 20px',
+          background: toastMsg.type === 'success' ? '#065f46' : '#991b1b',
+          color: '#ffffff',
+          borderRadius: '12px',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          fontSize: '14px',
+          fontWeight: 500
+        }}>
+          {toastMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <span>{toastMsg.text}</span>
+        </div>
+      )}
+
       {/* Top Navigation Bar */}
-      <header style={{ 
-        borderBottom: '1px solid rgba(255, 255, 255, 0.08)', 
-        background: 'rgba(11, 15, 25, 0.85)', 
-        backdropFilter: 'blur(12px)',
+      <header style={{
         position: 'sticky',
         top: 0,
-        zIndex: 50
+        zIndex: 50,
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+        background: 'rgba(11, 15, 25, 0.85)',
+        borderBottom: '1px solid var(--border-card)',
+        padding: '0 24px'
       }}>
-        <div style={{ maxWidth: '1240px', margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '10px', 
+        <div style={{ maxWidth: '1400px', margin: '0 auto', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
               background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
             }}>
-              <Compass size={22} color="#fff" />
+              <ShieldCheck size={22} color="#ffffff" />
             </div>
             <div>
-              <div style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.01em' }}>E-BIZ ENTERPRISE SSO HUB</div>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>Cổng Điều Hướng Các Phân Hệ Phần Mềm</div>
+              <div style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '-0.02em', color: '#ffffff' }}>
+                CENTRAL PORTAL & IDENTITY HUB
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                API Gateway: 5000 | Identity: 5001
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px' }}>
-                {user?.fullName?.charAt(0) || 'A'}
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600 }}>{user?.fullName}</div>
-                <div style={{ fontSize: '11px', color: '#818cf8' }}>{user?.role}</div>
-              </div>
-            </div>
+          {/* Navigation Tabs */}
+          <div style={{ display: 'flex', gap: '8px', background: 'rgba(255, 255, 255, 0.04)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+            <button
+              onClick={() => setActiveTab('launcher')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeTab === 'launcher' ? 'var(--primary)' : 'transparent',
+                color: activeTab === 'launcher' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: 600,
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Layers size={16} />
+              <span>Hệ Thống Phân Hệ</span>
+            </button>
 
-            <button onClick={handleLogout} className="btn-secondary" title="Đăng xuất khỏi SSO">
+            <button
+              onClick={() => setActiveTab('users')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeTab === 'users' ? 'var(--primary)' : 'transparent',
+                color: activeTab === 'users' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: 600,
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Users size={16} />
+              <span>Quản Trị Người Dùng</span>
+              <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '10px' }}>
+                {userList.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('roles')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: activeTab === 'roles' ? 'var(--primary)' : 'transparent',
+                color: activeTab === 'roles' ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: 600,
+                fontSize: '13.5px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Shield size={16} />
+              <span>Quản Trị Vai Trò</span>
+              <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '10px' }}>
+                {roleList.length}
+              </span>
+            </button>
+          </div>
+
+          {/* User Profile & Logout */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#ffffff' }}>{user?.fullName}</div>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>@{user?.username} ({user?.role})</div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="btn-secondary"
+              title="Đăng xuất"
+              style={{ padding: '8px 12px' }}
+            >
               <LogOut size={16} />
-              <span>Đăng Xuất</span>
+              <span>Đăng xuất</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, maxWidth: '1240px', width: '100%', margin: '0 auto', padding: '36px 24px' }}>
-        {/* Banner Section */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '6px', letterSpacing: '-0.02em' }}>
-            Lựa Chọn Phần Mềm Làm Việc
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px' }}>
-            Chọn phần mềm nghiệp vụ bên dưới để truy cập. Phiên đăng nhập được tự động chuyển giao qua Single Sign-On (SSO).
-          </p>
-        </div>
+      <div style={{ flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '32px 24px' }}>
+        
+        {/* ==================================================== */}
+        {/* TAB 1: APP LAUNCHER                                  */}
+        {/* ==================================================== */}
+        {activeTab === 'launcher' && (
+          <div>
+            <div style={{ marginBottom: '32px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px', color: '#ffffff' }}>
+                Trung Tâm Khởi Chạy Ứng Dụng (Single Sign-On Hub)
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                Chọn phân hệ để truy cập ngay với phiên đăng nhập SSO tập trung của bạn.
+              </p>
+            </div>
 
-        {/* Filter & Search Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', width: '340px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input 
-              type="text" 
-              className="input-field" 
-              placeholder="Tìm kiếm phần mềm, cơ sở dữ liệu..." 
-              style={{ paddingLeft: '40px' }}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#34d399' }}>
-            <CheckCircle2 size={16} />
-            <span>Phiên làm việc SSO đã sẵn sàng</span>
-          </div>
-        </div>
-
-        {/* Status Toast */}
-        {redirectNotice && (
-          <div className="glass-panel animate-fade-in" style={{ 
-            padding: '14px 20px', 
-            marginBottom: '24px', 
-            background: 'rgba(79, 70, 229, 0.25)', 
-            borderColor: '#6366f1',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#6366f1', animation: 'pulse 1.5s infinite' }}></div>
-            <span style={{ fontSize: '14px', fontWeight: 600, color: '#e0e7ff' }}>{redirectNotice}</span>
-          </div>
-        )}
-
-        {/* Section 1: Hai phân hệ cốt lõi ngang hàng */}
-        <div style={{ marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Layers size={16} color="#818cf8" />
-            <span>Phân Hệ Nghiệp Vụ Cốt Lõi</span>
-          </h2>
-
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', 
-            gap: '24px',
-            marginBottom: '36px'
-          }}>
-            {filteredApps.filter(a => a.isPrimary).map((app) => {
-              const IconComponent = app.icon;
-              return (
-                <div 
-                  key={app.id} 
-                  className="glass-panel" 
-                  style={{ 
-                    padding: '26px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    justifyContent: 'space-between',
-                    border: `1px solid ${app.borderColor}`,
-                    background: app.id === 'asset' 
-                      ? 'linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(19, 25, 38, 0.8) 100%)'
-                      : 'linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(19, 25, 38, 0.8) 100%)'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                      <div style={{ 
-                        width: '52px', 
-                        height: '52px', 
-                        borderRadius: '14px', 
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: `1px solid ${app.borderColor}`
-                      }}>
-                        <IconComponent size={28} color={app.id === 'asset' ? '#fbbf24' : '#818cf8'} />
-                      </div>
-
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ 
-                          fontSize: '11px', 
-                          fontWeight: 700, 
-                          padding: '4px 10px', 
-                          background: 'rgba(255, 255, 255, 0.06)', 
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
+              {APPS.map((app) => {
+                const IconComponent = app.icon;
+                return (
+                  <div
+                    key={app.id}
+                    className="glass-panel"
+                    style={{
+                      padding: '28px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      borderLeft: `4px solid ${app.borderColor}`
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                        <div style={{
+                          width: '50px',
+                          height: '50px',
+                          borderRadius: '14px',
+                          background: `linear-gradient(135deg, ${app.borderColor} 0%, rgba(15, 23, 42, 0.8) 100%)`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: '1px solid rgba(255, 255, 255, 0.15)'
+                        }}>
+                          <IconComponent size={26} color="#ffffff" />
+                        </div>
+                        <span style={{
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '4px 10px',
                           borderRadius: '20px',
-                          color: '#f8fafc',
-                          border: '1px solid rgba(255, 255, 255, 0.12)',
-                          display: 'inline-block'
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)'
                         }}>
                           {app.badge}
                         </span>
-                        <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-                          <Database size={12} />
-                          <span>DB: <strong>{app.dbName}</strong></span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: app.id === 'asset' ? '#fbbf24' : '#818cf8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '6px' }}>
-                      {app.category}
-                    </div>
-
-                    <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px', color: '#fff' }}>
-                      {app.name}
-                    </h3>
-
-                    <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: '22px' }}>
-                      {app.description}
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button 
-                      className="btn-primary" 
-                      style={{ 
-                        flex: 1, 
-                        background: app.id === 'asset' 
-                          ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' 
-                          : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                        color: app.id === 'asset' ? '#0b0f19' : '#fff',
-                        fontWeight: 700
-                      }}
-                      onClick={() => handleLaunchApp(app, true)}
-                    >
-                      <span>Vào Phần Mềm Ngay</span>
-                      <ArrowRight size={16} />
-                    </button>
-
-                    <button 
-                      className="btn-secondary" 
-                      title="Mở tab mới"
-                      onClick={() => handleLaunchApp(app, false)}
-                    >
-                      <ExternalLink size={16} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Section 2: Các phân hệ bổ trợ & tiện ích */}
-        <div>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Radio size={16} color="#10b981" />
-            <span>Phân Hệ Mở Rộng & Dịch Vụ Khác</span>
-          </h2>
-
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-            gap: '20px' 
-          }}>
-            {filteredApps.filter(a => !a.isPrimary).map((app) => {
-              const IconComponent = app.icon;
-              return (
-                <div 
-                  key={app.id} 
-                  className="glass-panel" 
-                  style={{ 
-                    padding: '20px', 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                      <div style={{ 
-                        width: '42px', 
-                        height: '42px', 
-                        borderRadius: '10px', 
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: `1px solid ${app.borderColor}`
-                      }}>
-                        <IconComponent size={22} color="#f8fafc" />
                       </div>
 
-                      <span style={{ 
-                        fontSize: '11px', 
-                        fontWeight: 600, 
-                        padding: '3px 8px', 
-                        background: 'rgba(255, 255, 255, 0.05)', 
-                        borderRadius: '16px',
-                        color: 'var(--text-secondary)'
-                      }}>
-                        {app.badge}
+                      <div style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-cyan)', marginBottom: '4px' }}>
+                        {app.category}
+                      </div>
+                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+                        {app.name}
+                      </h3>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', lineHeight: 1.5, marginBottom: '20px' }}>
+                        {app.description}
+                      </p>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--border-card)', paddingTop: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        Database: <strong>{app.dbName}</strong>
                       </span>
+                      <button
+                        onClick={() => handleLaunchApp(app)}
+                        className="btn-primary"
+                        style={{ padding: '8px 18px', fontSize: '13.5px' }}
+                      >
+                        <span>Mở Phân Hệ</span>
+                        <ExternalLink size={15} />
+                      </button>
                     </div>
-
-                    <div style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      {app.category}
-                    </div>
-
-                    <h4 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>
-                      {app.name}
-                    </h4>
-
-                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: '18px' }}>
-                      {app.description}
-                    </p>
                   </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-                  <button 
-                    className="btn-secondary" 
-                    style={{ width: '100%', justifyContent: 'space-between' }}
-                    onClick={() => handleLaunchApp(app, false)}
-                  >
-                    <span>Truy cập</span>
-                    <ExternalLink size={14} />
-                  </button>
+        {/* ==================================================== */}
+        {/* TAB 2: QUẢN TRỊ NGƯỜI DÙNG TẬP TRUNG                */}
+        {/* ==================================================== */}
+        {activeTab === 'users' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px', color: '#ffffff' }}>
+                  Quản Trị Người Dùng Tập Trung (`Identity_DB`)
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                  Tạo tài khoản và phân quyền vai trò cho toàn bộ các dịch vụ Asset, KPI, Room.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={fetchUsers} className="btn-secondary" title="Làm mới">
+                  <RefreshCw size={16} />
+                  <span>Tải lại</span>
+                </button>
+                <button onClick={() => setIsCreateUserOpen(true)} className="btn-primary">
+                  <Plus size={16} />
+                  <span>Thêm Người Dùng Mới</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div style={{ marginBottom: '20px', position: 'relative', maxWidth: '400px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '14px', top: '12px', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                className="input-field"
+                style={{ paddingLeft: '40px' }}
+                placeholder="Tìm theo tên đăng nhập, họ tên, email..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+              />
+            </div>
+
+            {/* Users Table */}
+            <div className="glass-panel" style={{ overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-card)' }}>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Tài khoản / Họ tên</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Liên hệ</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Vai trò được cấp</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'right' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        {isDataLoading ? 'Đang tải dữ liệu...' : 'Không tìm thấy người dùng nào.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' }}>
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ fontWeight: 600, color: '#ffffff' }}>{u.fullName}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>@{u.userName}</div>
+                        </td>
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ color: 'var(--text-primary)' }}>{u.email || '-'}</div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{u.phoneNumber || ''}</div>
+                        </td>
+                        <td style={{ padding: '16px 20px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {u.roles && u.roles.length > 0 ? (
+                              u.roles.map((r) => (
+                                <span key={r} style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: r.includes('ADMIN') ? 'rgba(239, 68, 68, 0.2)' : r.includes('TAISAN') ? 'rgba(245, 158, 11, 0.2)' : r.includes('KPI') ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                                  color: r.includes('ADMIN') ? '#fca5a5' : r.includes('TAISAN') ? '#fcd34d' : r.includes('KPI') ? '#a5b4fc' : '#6ee7b7',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}>
+                                  {r}
+                                </span>
+                              ))
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Chưa gán vai trò</span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                          {u.isActive ? (
+                            <span style={{ fontSize: '12px', color: '#34d399', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <UserCheck size={14} /> Hoạt động
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: '#f87171', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <UserX size={14} /> Bị khóa
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button
+                              onClick={() => handleOpenAssignRoles(u)}
+                              className="btn-secondary"
+                              title="Phân vai trò cho người dùng"
+                              style={{ padding: '6px 12px', fontSize: '12.5px', color: 'var(--accent-cyan)' }}
+                            >
+                              <Shield size={14} />
+                              <span>Phân Vai Trò</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedUser(u);
+                                setResetPassValue('123456');
+                                setIsResetPassOpen(true);
+                              }}
+                              className="btn-secondary"
+                              title="Đặt lại mật khẩu"
+                              style={{ padding: '6px 10px' }}
+                            >
+                              <Key size={14} />
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleUserActive(u)}
+                              className="btn-secondary"
+                              title={u.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+                              style={{ padding: '6px 10px', color: u.isActive ? '#f87171' : '#34d399' }}
+                            >
+                              {u.isActive ? <Lock size={14} /> : <Unlock size={14} />}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================== */}
+        {/* TAB 3: QUẢN TRỊ VAI TRÒ TẬP TRUNG                    */}
+        {/* ==================================================== */}
+        {activeTab === 'roles' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <div>
+                <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px', color: '#ffffff' }}>
+                  Quản Trị Danh Mục Vai Trò (Roles)
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                  Định nghĩa các vai trò chức năng để phân bổ cho toàn hệ thống Microservices.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={fetchRoles} className="btn-secondary" title="Làm mới">
+                  <RefreshCw size={16} />
+                  <span>Tải lại</span>
+                </button>
+                <button onClick={() => setIsCreateRoleOpen(true)} className="btn-primary">
+                  <Plus size={16} />
+                  <span>Thêm Vai Trò Mới</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div style={{ marginBottom: '20px', position: 'relative', maxWidth: '400px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '14px', top: '12px', color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                className="input-field"
+                style={{ paddingLeft: '40px' }}
+                placeholder="Tìm theo tên vai trò, mã vai trò..."
+                value={roleSearch}
+                onChange={(e) => setRoleSearch(e.target.value)}
+              />
+            </div>
+
+            {/* Roles Table */}
+            <div className="glass-panel" style={{ overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-card)' }}>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Mã vai trò (Code)</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Tên hiển thị</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Phân loại</th>
+                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'right' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRoles.map((r) => (
+                    <tr key={r.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '16px 20px' }}>
+                        <span style={{
+                          fontWeight: 700,
+                          fontSize: '12.5px',
+                          color: 'var(--accent-cyan)',
+                          background: 'rgba(6, 182, 212, 0.1)',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(6, 182, 212, 0.2)'
+                        }}>
+                          {r.code}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px 20px', fontWeight: 600, color: '#ffffff' }}>
+                        {r.name}
+                      </td>
+                      <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>
+                        {r.type || 'GENERAL'}
+                      </td>
+                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                        {r.code !== 'ADMIN' && (
+                          <button
+                            onClick={() => handleDeleteRole(r)}
+                            className="btn-secondary"
+                            title="Xóa vai trò"
+                            style={{ padding: '6px 10px', color: '#f87171' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ==================================================== */}
+      {/* MODAL 1: THÊM NGƯỜI DÙNG MỚI                         */}
+      {/* ==================================================== */}
+      {isCreateUserOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Thêm Tài Khoản Người Dùng</h3>
+              <button onClick={() => setIsCreateUserOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Tên đăng nhập *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="ví dụ: nguyenvanan"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Họ và tên *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="ví dụ: Nguyễn Văn An"
+                  value={newFullName}
+                  onChange={(e) => setNewFullName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    placeholder="email@example.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                  />
                 </div>
-              );
-            })}
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                    Mật khẩu ban đầu
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Roles Checkbox Selection */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                  Gán vai trò ban đầu:
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-card)' }}>
+                  {roleList.map((r) => {
+                    const isChecked = newSelectedRoles.includes(r.code);
+                    return (
+                      <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: isChecked ? '#ffffff' : 'var(--text-secondary)', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setNewSelectedRoles([...newSelectedRoles, r.code]);
+                            } else {
+                              setNewSelectedRoles(newSelectedRoles.filter(code => code !== r.code));
+                            }
+                          }}
+                        />
+                        <span>{r.name} ({r.code})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setIsCreateUserOpen(false)} className="btn-secondary">
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  Tạo Người Dùng
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </main>
+      )}
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)', padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12.5px' }}>
-        Hệ Thống Phân Tán Microservices • Đồng bộ SSO giữa Quản Lý Tài Sản (:9797) và Đánh Giá KPI (:9696)
-      </footer>
+      {/* ==================================================== */}
+      {/* MODAL 2: GÁN VAI TRÒ CHO NGƯỜI DÙNG                 */}
+      {/* ==================================================== */}
+      {isAssignRoleOpen && selectedUser && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Phân Quyền Vai Trò</h3>
+              <button onClick={() => setIsAssignRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Gán các vai trò cho tài khoản: <strong style={{ color: '#ffffff' }}>{selectedUser.fullName}</strong> (@{selectedUser.userName})
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+              {roleList.map((r) => {
+                const isChecked = assignedRoles.includes(r.code);
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => {
+                      if (isChecked) {
+                        setAssignedRoles(assignedRoles.filter(code => code !== r.code));
+                      } else {
+                        setAssignedRoles([...assignedRoles, r.code]);
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: isChecked ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-card)',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, color: isChecked ? '#ffffff' : 'var(--text-primary)', fontSize: '14px' }}>
+                        {r.name}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mã vai trò: {r.code}</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}}
+                      style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setIsAssignRoleOpen(false)} className="btn-secondary">
+                Hủy
+              </button>
+              <button onClick={handleSaveAssignedRoles} className="btn-primary">
+                Lưu Thay Đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL 3: ĐẶT LẠI MẬT KHẨU                            */}
+      {/* ==================================================== */}
+      {isResetPassOpen && selectedUser && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Đặt Lại Mật Khẩu</h3>
+              <button onClick={() => setIsResetPassOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', marginBottom: '18px' }}>
+              Đặt lại mật khẩu cho tài khoản: <strong style={{ color: '#ffffff' }}>@{selectedUser.userName}</strong>
+            </p>
+
+            <form onSubmit={handleResetPassword}>
+              <div style={{ marginBottom: '22px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Mật khẩu mới *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={resetPassValue}
+                  onChange={(e) => setResetPassValue(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setIsResetPassOpen(false)} className="btn-secondary">
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  Cập Nhật Mật Khẩu
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL 4: THÊM VAI TRÒ MỚI                            */}
+      {/* ==================================================== */}
+      {isCreateRoleOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '30px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Thêm Vai Trò Mới</h3>
+              <button onClick={() => setIsCreateRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRole}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Mã vai trò (Code) *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="ví dụ: ROLE_TAISAN_TRUONGPHONG"
+                  value={newRoleCode}
+                  onChange={(e) => setNewRoleCode(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Tên vai trò hiển thị *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="ví dụ: Trưởng phòng Quản lý Tài sản"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '22px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  Phân loại phân hệ
+                </label>
+                <select
+                  className="input-field"
+                  value={newRoleType}
+                  onChange={(e) => setNewRoleType(e.target.value)}
+                >
+                  <option value="GENERAL">Dùng chung (General)</option>
+                  <option value="ASSET">Cơ sở vật chất & Tài sản</option>
+                  <option value="KPI">Đánh giá thi đua KPI</option>
+                  <option value="ROOM">Phòng trọ & Ví tiền</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button type="button" onClick={() => setIsCreateRoleOpen(false)} className="btn-secondary">
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  Tạo Vai Trò
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
