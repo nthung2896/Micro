@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>C/O {{MaHoSo}} – Thanh toán phí</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font: 14px/1.5 Arial,sans-serif;
+            background: #f5f5f5;
+            color: #111
+        }
+
+        .c {
+            max-width: 560px;
+            margin: 8px auto;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden
+        }
+
+        .h {
+            background: #0066cc;
+            color: #fff;
+            padding: 10px;
+            text-align: center
+        }
+
+            .h img {
+                width: 45px;
+                height: 45px
+            }
+
+            .h h1 {
+                font: 700 15px/1.2 Arial;
+                margin: 4px 0 2px
+            }
+
+            .h p {
+                font-size: 12px;
+                opacity: .9
+            }
+
+        .b {
+            padding: 12px 15px;
+            font-size: 13.5px
+        }
+
+        .hi {
+            color: #c00;
+            font-weight: 600
+        }
+
+        .t {
+            font-size: 13px;
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0
+        }
+
+            .t td {
+                padding: 3px 0;
+                border-bottom: 1px dashed #eee
+            }
+
+                .t td:first-child {
+                    width: 35%;
+                    color: #555;
+                    font-weight: 600
+                }
+
+        .q {
+            text-align: center;
+            margin: 10px 0;
+            padding: 8px;
+            background: #f0f7ff;
+            border: 1px dashed #99cfff;
+            border-radius: 6px
+        }
+
+            .q img {
+                width: 130px;
+                height: 130px
+            }
+
+            .q p {
+                font-size: 12px;
+                color: #0066cc;
+                margin-top: 5px
+            }
+
+        .k {
+            background: #fff9e6;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12.5px;
+            border-left: 3px solid #f90;
+            margin: 8px 0
+        }
+
+        .w {
+            background: #fffbe6;
+            border: 1px solid #ffd591;
+            padding: 7px;
+            border-radius: 5px;
+            font-size: 12px;
+            color: #b36b00;
+            margin: 8px 0
+        }
+
+        .s {
+            background: #e6f7ff;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12.5px;
+            border-left: 3px solid #1890ff;
+            margin: 8px 0
+        }
+
+        .f {
+            background: #111;
+            color: #aaa;
+            padding: 8px;
+            text-align: center;
+            font-size: 11px
+        }
+
+            .f a {
+                color: #4da6ff
+            }
+
+        @media(max-width:480px) {
+            .c {
+                margin: 5px
+            }
+
+            .q img {
+                width: 110px;
+                height: 110px
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="c">
+
+        <!-- Header -->
+        <div class="h">
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCuO5vbKoq7XLNWqS3nxJs6C59Y59dGO5dfw&s" alt="Quốc huy">
+            <!-- <h1>CỘNG HÒA XHCN VIỆT NAM</h1>
+            <p>Độc lập – Tự do – Hạnh phúc</p> -->
+        </div>
+
+        <!-- Body -->
+        <div class="b">
+            <p><b>Kính gửi:</b> <span class="hi">{{TenDoanhNghiep}}</span></p>
+            <p>Hồ sơ <b>C/O {{MaHoSo}}</b> đã tiếp nhận. Vui lòng thanh toán <b>{{SoTien}} đồng</b> trước <b>{{HanThanhToan}}</b>.</p>
+
+            <table class="t">
+                <tr><td>Loại C/O:</td><td>{{LoaiCO}}</td></tr>
+                <tr><td>Hạn:</td><td><span class="hi">{{HanThanhToan}}</span></td></tr>
+            </table>
+
+            <div class="q">
+                <img src="{{QR_URL}}" alt="QR">
+                <p>Quét QR để thanh toán</p>
+            </div>
+
+            <div class="k">
+                <b>Chuyển khoản:</b><br>
+                TK: <b>0011009999999</b> – Cục XNK – Vietcombank Hà Nội<br>
+                Nội dung: <span class="hi">LEPHI CO {{MaHoSo}}</span>
+            </div>
+
+            <div class="w">Chỉ thanh toán qua QR/TK chính thức. Gọi <b>1800-1234</b> nếu nghi ngờ.</div>
+
+            <p style="text-align:center;margin:8px 0">
+                <a href="{{LinkTheoDoi}}" style="color:#0066cc">Theo dõi hồ sơ</a>
+            </p>
+
+            <div class="s">
+                <b>Hỗ trợ:</b> {{TenChuyenVien}}<br>
+                <a href="mailto:{{EmailChuyenVien}}" style="color:#0066cc">{{EmailChuyenVien}}</a> | {{SoDienThoai}}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="f">
+            Hệ thống C/O điện tử | {{Ngay}} {{Gio}} | Mã: {{MaXacThuc}}<br>
+            © 2025 Bộ Công Thương | <a href="https://moit.gov.vn">moit.gov.vn</a>
+        </div>
+
+    </div>
+</body>
+</html>

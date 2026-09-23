@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "api-gateway": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:56155;http://localhost:56156"
+    }
+  }
+}

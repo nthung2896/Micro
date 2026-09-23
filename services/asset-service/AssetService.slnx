@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="../../shared/SharedKernel/SharedKernel.csproj" />
+  <Project Path="CommonHelper/CommonHelper.csproj" />
+  <Project Path="Hinet.Api/Hinet.Api.csproj" />
+  <Project Path="Hinet.Model/Hinet.Model.csproj" />
+  <Project Path="Hinet.Repository/Hinet.Repository.csproj" />
+  <Project Path="Hinet.Service/Hinet.Service.csproj" />
+</Solution>

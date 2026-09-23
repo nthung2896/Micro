@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  api-roomplatform:
+    image: hungnt2896/roomplatform_api:latest # Tên image nạp từ file roomplatform-api.tar
+    container_name: roomplatform_api_hub
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:9966
+    expose:
+      - "9966"
+    networks:
+      - share_network_all
+    volumes:
+      - /home/hungnt-home/image_docker_roomplatform/uploads:/app/wwwroot/uploads
+
+  client-roomplatform:
+    image: hungnt2896/roomplatform_client:latest # Tên image nạp từ file roomplatform-client.tar
+    container_name: roomplatform_client_hub
+    restart: always
+    expose:
+      - "8713"
+    networks:
+      - share_network_all
+
+  worker-syncelastic-roomplatform:
+    image: hungnt2896/roomplatform_worker_syncelastic:latest
+    container_name: roomplatform_worker_syncelastic_hub
+    restart: always
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - CONTAINER_TYPE=Docker-Compose
+    networks:
+      - share_network_all
+
+  worker-auditlog-roomplatform:
+    image: hungnt2896/roomplatform_worker_log:latest
+    container_name: roomplatform_worker_log_hub
+    restart: always
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+    networks:
+      - share_network_all
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nginx_roomplatform_hub
+  #   restart: always
+  #   ports:
+  #     - "84:80"
+  #   volumes:
+  #     - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+  #   depends_on:
+  #     - api-roomplatform
+  #     - client-roomplatform
+  #   networks:
+  #     - roomplatform-network-hub
+
+networks:
+  share_network_all:
+    external: true

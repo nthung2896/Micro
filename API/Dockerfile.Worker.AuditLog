@@ -1,0 +1,25 @@
+# Multi-stage Dockerfile cho Hinet.Worker.SyncElastic (.NET 10 Worker)
+
+# Stage 1: Build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy csproj và restore dependencies
+COPY ["Hinet.Worker.AuditLog/Hinet.Worker.AuditLog.csproj", "Hinet.Worker.AuditLog/"]
+COPY ["Hinet.Model/Hinet.Model.csproj", "Hinet.Model/"]
+COPY ["Hinet.Repository/Hinet.Repository.csproj", "Hinet.Repository/"]
+COPY ["Hinet.Service/Hinet.Service.csproj", "Hinet.Service/"]
+COPY ["CommonHelper/CommonHelper.csproj", "CommonHelper/"]
+
+RUN dotnet restore "Hinet.Worker.AuditLog/Hinet.Worker.AuditLog.csproj"
+
+# Copy toàn bộ code và publish
+COPY . .
+WORKDIR "/src/Hinet.Worker.AuditLog"
+RUN dotnet publish "Hinet.Worker.AuditLog.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+# Stage 2: Runtime (Dùng image aspnet để có sẵn Microsoft.AspNetCore.App)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Hinet.Worker.AuditLog.dll"]

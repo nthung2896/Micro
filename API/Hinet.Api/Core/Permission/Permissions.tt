@@ -1,0 +1,52 @@
+﻿<#@ template language="C#" #>
+<#@ output extension=".cs" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#
+(string Name, string Prefix, string[] Actions) Config(string name, string prefix, params string[] Actions)
+{
+    return (name, prefix, Actions);
+}
+
+Dictionary<string, (string Prefix, string[] Actions)> CreatePermissionsConfig(params (string Name, string Prefix, string[] Actions)[] configs)
+{
+    return configs.ToDictionary(config => config.Name, config => (config.Prefix, config.Actions));
+}
+
+var permissionsConfig = CreatePermissionsConfig(
+    Config("Tinh", "A", "Report", "BaoCao"),
+    Config("Huyen", "A")
+);
+
+var fixedRights = new[] { "Data", "Create", "Update", "Delete" };
+#>
+namespace Hinet.Api.Core.Permission
+{
+public static class Permissions
+{
+<# foreach (var permission in permissionsConfig) { #>
+    public static class <#= permission.Key #>
+    {
+<# 
+    // Thêm các quyền cố định
+    for (int i = 0; i < fixedRights.Length; i++) { 
+        var right = fixedRights[i];
+#>
+        public const string <#= right #> = "<#= permission.Value.Prefix #>.<#= i + 1 #>";
+<# 
+    } 
+    // Thêm các quyền bổ sung từ cấu hình
+    for (int i = 0; i < permission.Value.Actions.Length; i++) { 
+        var right = permission.Value.Actions[i];
+#>
+        public const string <#= right #> = "<#= permission.Value.Prefix #>.<#= fixedRights.Length + i + 1 #>";
+<# 
+    } 
+#>
+    }
+<# } #>
+}
+}

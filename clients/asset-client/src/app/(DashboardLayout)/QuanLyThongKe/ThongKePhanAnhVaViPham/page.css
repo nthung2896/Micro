@@ -1,0 +1,93 @@
+.thong-ke-phan-anh-va-vi-pham-results {
+  width: 100%;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-cell-fix-left.thong-ke-region-label-cell,
+.thong-ke-phan-anh-va-vi-pham-table
+  .ant-table-body
+  .thong-ke-region-row
+  .thong-ke-region-label-cell {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 5 !important;
+  background: #e9edf5 !important;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-thead > tr > th {
+  background: #4472c4 !important;
+  color: #fff !important;
+  font-weight: 600;
+  text-align: center;
+  border-color: #fff !important;
+  white-space: normal;
+  line-height: 1.3;
+  padding: 8px 6px;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-tbody > tr > td {
+  vertical-align: middle;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-tbody > tr:hover > td {
+  background: #f5f9ff;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-body .thong-ke-region-row:hover > td {
+  background: #e9edf5 !important;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-total-row > td,
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-total-row > th {
+  background: #d6e4f0 !important;
+  font-weight: 700;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-total-label-cell {
+  text-align: center !important;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table
+  .ant-table-summary
+  .thong-ke-total-row
+  .ant-table-cell-fix-left {
+  z-index: 4 !important;
+  background: #d6e4f0 !important;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-total-row:hover > td {
+  background: #d6e4f0 !important;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary > tr > td {
+  background: #e9edf5;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-phan-anh-va-vi-pham-total-value {
+  font-size: 16px;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .thong-ke-clickable-cell {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .thong-ke-clickable-cell:hover {
+  background: #e6f4ff !important;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .thong-ke-clickable-cell .thong-ke-cell-value,
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-cell-value {
+  color: #0355a2;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .ant-table-summary .thong-ke-clickable-cell:hover {
+  background: #c5d9eb !important;
+}
+
+.thong-ke-phan-anh-va-vi-pham-table .thong-ke-clickable-cell:hover .thong-ke-cell-value {
+  text-decoration: underline;
+}

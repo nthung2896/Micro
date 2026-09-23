@@ -1,0 +1,137 @@
+services:
+  # ----------------------------------------------------
+  # 1. Nginx Reverse Proxy & API Gateway (Port 80)
+  # ----------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: micro_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - identity-service
+      - room-service
+      - kpi-service
+      - asset-service
+      - portal-client
+      - kpi-client
+      - asset-client
+
+  # ----------------------------------------------------
+  # 2. Infrastructure Services (Cache, Queue)
+  # Lưu ý: Database dùng trực tiếp SQL Server thật: 192.168.0.101,1433
+  # ----------------------------------------------------
+  redis:
+    image: redis:alpine
+    container_name: micro_redis
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: micro_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  # ----------------------------------------------------
+  # 3. Frontend Web Clients
+  # ----------------------------------------------------
+  portal-client:
+    build:
+      context: ./clients/portal-client
+      dockerfile: Dockerfile
+    container_name: micro_portal_client
+    restart: always
+    ports:
+      - "3000:3000"
+
+  kpi-client:
+    build:
+      context: ./clients/kpi-client
+      dockerfile: Dockerfile
+    container_name: micro_kpi_client
+    restart: always
+    ports:
+      - "9696:9696"
+
+  asset-client:
+    build:
+      context: ./clients/asset-client
+      dockerfile: Dockerfile
+    container_name: micro_asset_client
+    restart: always
+    ports:
+      - "9797:9797"
+
+  # ----------------------------------------------------
+  # 4. Backend Microservices (.NET 8)
+  # Kết nối trực tiếp máy chủ SQL Server thật: 192.168.0.101,1433
+  # ----------------------------------------------------
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: micro_gateway
+    ports:
+      - "5000:5000"
+    depends_on:
+      - identity-service
+      - room-service
+      - kpi-service
+      - asset-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ReverseProxy__Clusters__identity-cluster__Destinations__destination1__Address=http://identity-service:5001
+      - ReverseProxy__Clusters__room-cluster__Destinations__destination1__Address=http://room-service:5002
+      - ReverseProxy__Clusters__kpi-cluster__Destinations__destination1__Address=http://kpi-service:5003
+      - ReverseProxy__Clusters__asset-cluster__Destinations__destination1__Address=http://asset-service:5005
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: services/identity-service/Dockerfile
+    container_name: micro_identity
+    ports:
+      - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=Identity_DB;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;
+
+  room-service:
+    build:
+      context: .
+      dockerfile: services/room-service/Dockerfile
+    container_name: micro_room
+    ports:
+      - "5002:5002"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=Room_DB;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;
+
+  kpi-service:
+    build:
+      context: .
+      dockerfile: services/kpi-service/Dockerfile
+    container_name: micro_kpi
+    ports:
+      - "5003:5003"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Connections__DefaultConnection=Server=host.docker.internal,1433;Database=Base_DB;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=Base_DB;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;
+
+  asset-service:
+    build:
+      context: .
+      dockerfile: services/asset-service/Dockerfile
+    container_name: micro_asset
+    ports:
+      - "5005:5005"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Connections__DefaultConnection=Server=host.docker.internal,1433;Database=Base_TaiSan;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=Base_TaiSan;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;

@@ -1,0 +1,143 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AuthConstractCategoryService\**" />
+    <Compile Remove="AuthenticationContractService\**" />
+    <Compile Remove="BannerService\**" />
+    <Compile Remove="BCBaoCaoDoiTuongService\**" />
+    <Compile Remove="BCBaoCaoService\**" />
+    <Compile Remove="BCDotBaoCaoService\**" />
+    <Compile Remove="BieuMauService\**" />
+    <Compile Remove="CompanyInfoService\**" />
+    <Compile Remove="DangKyXemLogService\**" />
+    <Compile Remove="DangKyXemNenTangService\**" />
+    <Compile Remove="DangKyXemService\**" />
+    <Compile Remove="DvcSyncFileMapService\**" />
+    <Compile Remove="DvcSyncLogService\**" />
+    <Compile Remove="DvcSyncService\**" />
+    <Compile Remove="EnterprisePlatformItemService\**" />
+    <Compile Remove="HistoryChangedAuthencationContractService\**" />
+    <Compile Remove="HolidayConfigsService\**" />
+    <Compile Remove="HomeBlockService\**" />
+    <Compile Remove="MauBaoCaoService\**" />
+    <Compile Remove="MauTraLoiService\**" />
+    <Compile Remove="NavMenuService\**" />
+    <Compile Remove="NenTangViPhamService\**" />
+    <Compile Remove="NguoiDuyetBaoCaoService\**" />
+    <Compile Remove="PhanAnhNenTangService\**" />
+    <Compile Remove="PlatformManageHistoryService\**" />
+    <Compile Remove="PlatformManageService\**" />
+    <Compile Remove="ProcessingDeadlineConfigService\**" />
+    <Compile Remove="RutTienKyQuyService\**" />
+    <Compile Remove="SignatureInfoService\**" />
+    <Compile Remove="TinTucService\**" />
+    <Compile Remove="VanBanPhapLuatService\**" />
+    <Compile Remove="VuViecPhanAnhService\**" />
+    <Compile Remove="VuViecTraoDoiService\**" />
+    <Compile Remove="WeeklyConfigService\**" />
+    <EmbeddedResource Remove="AuthConstractCategoryService\**" />
+    <EmbeddedResource Remove="AuthenticationContractService\**" />
+    <EmbeddedResource Remove="BannerService\**" />
+    <EmbeddedResource Remove="BCBaoCaoDoiTuongService\**" />
+    <EmbeddedResource Remove="BCBaoCaoService\**" />
+    <EmbeddedResource Remove="BCDotBaoCaoService\**" />
+    <EmbeddedResource Remove="BieuMauService\**" />
+    <EmbeddedResource Remove="CompanyInfoService\**" />
+    <EmbeddedResource Remove="DangKyXemLogService\**" />
+    <EmbeddedResource Remove="DangKyXemNenTangService\**" />
+    <EmbeddedResource Remove="DangKyXemService\**" />
+    <EmbeddedResource Remove="DvcSyncFileMapService\**" />
+    <EmbeddedResource Remove="DvcSyncLogService\**" />
+    <EmbeddedResource Remove="DvcSyncService\**" />
+    <EmbeddedResource Remove="EnterprisePlatformItemService\**" />
+    <EmbeddedResource Remove="HistoryChangedAuthencationContractService\**" />
+    <EmbeddedResource Remove="HolidayConfigsService\**" />
+    <EmbeddedResource Remove="HomeBlockService\**" />
+    <EmbeddedResource Remove="MauBaoCaoService\**" />
+    <EmbeddedResource Remove="MauTraLoiService\**" />
+    <EmbeddedResource Remove="NavMenuService\**" />
+    <EmbeddedResource Remove="NenTangViPhamService\**" />
+    <EmbeddedResource Remove="NguoiDuyetBaoCaoService\**" />
+    <EmbeddedResource Remove="PhanAnhNenTangService\**" />
+    <EmbeddedResource Remove="PlatformManageHistoryService\**" />
+    <EmbeddedResource Remove="PlatformManageService\**" />
+    <EmbeddedResource Remove="ProcessingDeadlineConfigService\**" />
+    <EmbeddedResource Remove="RutTienKyQuyService\**" />
+    <EmbeddedResource Remove="SignatureInfoService\**" />
+    <EmbeddedResource Remove="TinTucService\**" />
+    <EmbeddedResource Remove="VanBanPhapLuatService\**" />
+    <EmbeddedResource Remove="VuViecPhanAnhService\**" />
+    <EmbeddedResource Remove="VuViecTraoDoiService\**" />
+    <EmbeddedResource Remove="WeeklyConfigService\**" />
+    <None Remove="AuthConstractCategoryService\**" />
+    <None Remove="AuthenticationContractService\**" />
+    <None Remove="BannerService\**" />
+    <None Remove="BCBaoCaoDoiTuongService\**" />
+    <None Remove="BCBaoCaoService\**" />
+    <None Remove="BCDotBaoCaoService\**" />
+    <None Remove="BieuMauService\**" />
+    <None Remove="CompanyInfoService\**" />
+    <None Remove="DangKyXemLogService\**" />
+    <None Remove="DangKyXemNenTangService\**" />
+    <None Remove="DangKyXemService\**" />
+    <None Remove="DvcSyncFileMapService\**" />
+    <None Remove="DvcSyncLogService\**" />
+    <None Remove="DvcSyncService\**" />
+    <None Remove="EnterprisePlatformItemService\**" />
+    <None Remove="HistoryChangedAuthencationContractService\**" />
+    <None Remove="HolidayConfigsService\**" />
+    <None Remove="HomeBlockService\**" />
+    <None Remove="MauBaoCaoService\**" />
+    <None Remove="MauTraLoiService\**" />
+    <None Remove="NavMenuService\**" />
+    <None Remove="NenTangViPhamService\**" />
+    <None Remove="NguoiDuyetBaoCaoService\**" />
+    <None Remove="PhanAnhNenTangService\**" />
+    <None Remove="PlatformManageHistoryService\**" />
+    <None Remove="PlatformManageService\**" />
+    <None Remove="ProcessingDeadlineConfigService\**" />
+    <None Remove="RutTienKyQuyService\**" />
+    <None Remove="SignatureInfoService\**" />
+    <None Remove="TinTucService\**" />
+    <None Remove="VanBanPhapLuatService\**" />
+    <None Remove="VuViecPhanAnhService\**" />
+    <None Remove="VuViecTraoDoiService\**" />
+    <None Remove="WeeklyConfigService\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+    <PackageReference Include="Elastic.Clients.Elasticsearch" Version="9.4.2" />
+    <PackageReference Include="EPPlus" Version="7.5.2" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="MailKit" Version="4.10.0" />
+    <PackageReference Include="Mammoth" Version="1.11.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.7" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="6.35.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.35.0" />
+    <PackageReference Include="MimeKit" Version="4.10.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Minio" Version="6.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CommonHelper\CommonHelper.csproj" />
+    <ProjectReference Include="..\Hinet.Repository\Hinet.Repository.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="BCSubmissionDataService\Dto\" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/services/">
+    <Project Path="services/api-gateway/api-gateway.csproj" />
+    <Project Path="services/identity-service/identity-service.csproj" />
+    <Project Path="services/kpi-service/kpi-service.csproj" />
+    <Project Path="services/room-service/room-service.csproj" />
+  </Folder>
+  <Folder Name="/services/asset-service/">
+    <Project Path="services/asset-service/Hinet.Api/Hinet.Api.csproj" />
+    <Project Path="services/asset-service/Hinet.Model/Hinet.Model.csproj" />
+    <Project Path="services/asset-service/Hinet.Repository/Hinet.Repository.csproj" />
+    <Project Path="services/asset-service/Hinet.Service/Hinet.Service.csproj" />
+    <Project Path="services/asset-service/CommonHelper/CommonHelper.csproj" />
+  </Folder>
+  <Folder Name="/shared/">
+    <Project Path="shared/SharedKernel/SharedKernel.csproj" />
+  </Folder>
+</Solution>

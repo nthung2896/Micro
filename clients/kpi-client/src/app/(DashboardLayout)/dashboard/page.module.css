@@ -1,0 +1,5 @@
+.customCardTitle .ant-card-head {
+  background-color: #2173ee !important; /* Màu nền tiêu đề */
+  color: #333 !important; /* Màu chữ */
+  font-weight: bold;
+}

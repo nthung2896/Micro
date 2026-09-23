@@ -1,0 +1,93 @@
+.avatarContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+}
+
+.avatarImage {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.avatarImage:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.changeButton {
+  width: 100%;
+  margin-top: 8px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.changeButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.uploadContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  gap: 16px;
+  padding: 16px 0;
+}
+
+/* Modal styling */
+.modalWrapper :global(.ant-modal-content) {
+  border-radius: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.modalWrapper :global(.ant-modal-header) {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #eaeaea;
+  padding: 16px 24px;
+}
+
+.modalWrapper :global(.ant-modal-title) {
+  font-weight: 600;
+  font-size: 18px;
+  color: #333;
+}
+
+.modalWrapper :global(.ant-modal-footer) {
+  border-top: 1px solid #eaeaea;
+  padding: 12px 24px;
+}
+
+.modalWrapper :global(.ant-modal-footer button) {
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.modalWrapper :global(.ant-modal-footer button:hover) {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.previewImage {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+}
+
+.uploadButton {
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.uploadButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}

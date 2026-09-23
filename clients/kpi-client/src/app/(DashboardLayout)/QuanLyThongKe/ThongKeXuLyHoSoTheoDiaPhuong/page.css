@@ -1,0 +1,113 @@
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-cell-fix-left.thong-ke-region-label-cell,
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-body
+  .thong-ke-region-row
+  .thong-ke-region-label-cell {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 5 !important;
+  background: #e9edf5 !important;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-summary .thong-ke-total-row > td,
+.thong-ke-xu-ly-dia-phuong-table .ant-table-summary .thong-ke-total-row > th {
+  background: #d6e4f0 !important;
+  font-weight: 700;
+}
+
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-summary
+  .thong-ke-total-row
+  > td.ant-table-cell-scrollbar,
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-summary
+  .thong-ke-total-row
+  > th.ant-table-cell-scrollbar {
+  background: #fff !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-summary
+  .thong-ke-total-label-cell {
+  text-align: center !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-summary
+  .thong-ke-total-row
+  .ant-table-cell-fix-left {
+  z-index: 4 !important;
+  background: #d6e4f0 !important;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-summary .thong-ke-total-row:hover > td {
+  background: #d6e4f0 !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-summary
+  .thong-ke-total-row:hover
+  > td.ant-table-cell-scrollbar {
+  background: #fff !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table
+  .ant-table-body
+  .thong-ke-region-row
+  .thong-ke-region-fill-cell {
+  background: #e9edf5 !important;
+  padding: 0 !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-body .thong-ke-region-row > td {
+  background: #e9edf5 !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-body .ant-table-cell-fix-left {
+  z-index: 4 !important;
+  background: #fff;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-header .ant-table-cell-fix-left {
+  z-index: 6 !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .thong-ke-region-row > td {
+  border-right: none !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .thong-ke-region-row:hover > td {
+  background: #e9edf5 !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .thong-ke-clickable-cell {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .thong-ke-clickable-cell:hover {
+  background: #e6f4ff !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .thong-ke-clickable-cell .thong-ke-cell-value {
+  color: #0355a2;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-summary .thong-ke-clickable-cell {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-summary .thong-ke-clickable-cell:hover {
+  background: #c5d9eb !important;
+}
+
+.thong-ke-xu-ly-dia-phuong-table .ant-table-summary .thong-ke-cell-value {
+  color: #0355a2;
+}

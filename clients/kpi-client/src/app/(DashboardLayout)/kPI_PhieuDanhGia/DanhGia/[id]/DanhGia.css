@@ -1,0 +1,28 @@
+/* Force overflow visible on all wrappers to allow native page-level sticky */
+.expand-table-body-section1,
+.expand-table-body-section1 .ant-table-wrapper,
+.expand-table-body-section1 .ant-spin-nested-loading,
+.expand-table-body-section1 .ant-spin-container,
+.expand-table-body-section1 .ant-table,
+.expand-table-body-section1 .ant-table-container {
+  overflow: visible !important;
+}
+
+.expand-table-body-section1 .ant-table-body {
+  max-height: none !important;
+  overflow-y: visible !important;
+  overflow-x: hidden !important; 
+}
+
+.expand-table-body-section1 .ant-table-header {
+  position: sticky !important;
+  top: var(--table-header-top-section1) !important;
+  z-index: 10 !important;
+}
+
+.parent-row > td {
+  background-color: #dbeafe !important;
+}
+.parent-row:hover > td {
+  background-color: #bfdbfe !important;
+}

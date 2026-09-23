@@ -1,0 +1,42 @@
+.mg5 {
+  margin-bottom: 5px;
+}
+
+.mgButton10 {
+  margin-bottom: 10px;
+}
+
+.mgright5 {
+  margin-right: 5px;
+}
+
+.customCardShadow {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* Màu và độ mờ */
+  border-radius: 8px;
+  /* Tùy chỉnh bo góc */
+}
+
+.colorKetXuat {
+  background-color: green;
+}
+
+/*CSS cho bảng edit RoleOperation*/
+.cssTable {
+  table-layout: fixed;
+}
+
+.cssTHead {
+  padding: 8px;
+  border: 1px solid #ddd;
+}
+
+.cssTheadWidth {
+  width: 35%;
+}
+
+.cssChuTrongTable {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}

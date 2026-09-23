@@ -1,0 +1,48 @@
+import { createConstant } from "./Constant";
+
+const ContractActionConstant = createConstant(
+  {
+    TamLuu: 0,
+    GuiDangKy: 1,
+    GuiBoSungThongTin: 2,
+    DeNghiGiaHan: 3,
+    DeNghiChamDutDangKy: 4,
+    HuyDangKy: 5,
+    PhanCongXuLy: 10,
+    NhanXuLy: 11,
+    YeuCauBoSungThongTin: 20,
+    TuChoi: 21,
+    DuyetDienTu: 22,
+    // YeuCauBanGiay: 30,
+    Review: 31,
+    XacNhan: 40,
+    DeNghiChinhSua: 88,
+    XacNhanChamDut: 89,
+    AutoClose: 93,
+    ChamDutDangKy: 90,
+    AutoExpire: 91,
+  } as const,
+  {
+    0: { displayName: "Tạm lưu", color: "#8c8c8c" },
+    1: { displayName: "Gửi đăng ký", color: "#0355a2" },
+    2: { displayName: "Gửi bổ sung thông tin", color: "#13c2c2" },
+    3: { displayName: "Đề nghị gia hạn", color: "#722ed1" },
+    4: { displayName: "Đề nghị chấm dứt đăng ký", color: "#fa8c16" },
+    5: { displayName: "Hủy đăng ký", color: "#ff4d4f" },
+    10: { displayName: "Phân công xử lý", color: "#0355a2" },
+    11: { displayName: "Nhận xử lý", color: "#52c41a" },
+    20: { displayName: "Yêu cầu bổ sung thông tin", color: "#faad14" },
+    21: { displayName: "Từ chối", color: "#ff4d4f" },
+    22: { displayName: "Duyệt điện tử", color: "#52c41a" },
+    // 30: { displayName: "Yêu cầu bản giấy", color: "#722ed1" },
+    31: { displayName: "Đã review", color: "#13c2c2" },
+    40: { displayName: "Xác nhận", color: "#52c41a" },
+    88: { displayName: "Đề nghị chỉnh sửa", color: "#faad14" },
+    89: { displayName: "Xác nhận chấm dứt đăng ký", color: "#ff4d4f" },
+    90: { displayName: "Chấm dứt đăng ký", color: "#8c8c8c" },
+    91: { displayName: "Tự động hết hạn", color: "#8c8c8c" },
+    93: { displayName: "Tự động đóng", color: "#8c8c8c" },
+  },
+);
+
+export default ContractActionConstant;

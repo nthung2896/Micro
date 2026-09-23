@@ -1,0 +1,200 @@
+﻿    const columnsQuy: TableProps<KPI_TongHopTieuChiChungNhanSuDto>["columns"] = [
+        {
+            title: "STT",
+            dataIndex: "stt",
+            key: "stt",
+            width: 70,
+            align: "center",
+            render: (_: any, record: any, index: number) => {
+                if (record.isDepartment) {
+                    return <Tag color="blue" style={{ fontWeight: 700, fontSize: "13px" }}>{record.sttRom || (index + 1)}</Tag>;
+                }
+                return <Text strong>{record.stt || index + 1}</Text>;
+            },
+        },
+        {
+            title: "Há» vÃ  tÃªn / PhÃ²ng ban",
+            dataIndex: "tenNhanSu",
+            key: "tenNhanSu",
+            width: 220,
+            align: "left",
+            render: (val: string, record: any) => {
+                if (record.isDepartment) {
+                    return (
+                        <Text strong style={{ color: "#0355a2", fontSize: "15px" }} className="uppercase tracking-wide">
+                            {val || "-"}
+                        </Text>
+                    );
+                }
+                return (
+                    <Text strong style={{ color: "#1f1f1f", fontSize: "14px", paddingLeft: "12px" }}>
+                        {val || "-"}
+                    </Text>
+                );
+            },
+        },
+        {
+            title: (
+                <div style={{ textAlign: "center" }}>
+                    Chá»©c vá»¥ / Sá»‘ lÆ°á»£ng<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(3)</span>
+                </div>
+            ),
+            dataIndex: "chucVu_txt",
+            key: "chucVu_txt",
+            width: 160,
+            align: "left",
+            render: (val: string, record: any) => {
+                if (record.isDepartment) {
+                    return <Tag color="cyan" style={{ fontWeight: 600 }}>{val || "-"}</Tag>;
+                }
+                return <Text type="secondary">{val || "-"}</Text>;
+            },
+        },
+        {
+            title: "Äiá»ƒm nhiá»‡m vá»¥ theo Bá»™ tiÃªu chÃ­",
+            key: "boTieuChiQuy",
+            children: [
+                {
+                    title: "Nhiá»‡m vá»¥ trong káº¿ hoáº¡ch",
+                    dataIndex: "diemTheoBTC_TrongKeHoach",
+                    key: "diemTheoBTC_TrongKeHoach",
+                    width: 150,
+                    align: "right",
+                    render: (val: number) => val != null ? Number(val).toFixed(2).replace(/\.00$/, '') : 0,
+                },
+                {
+                    title: "Nhiá»‡m vá»¥ phÃ¡t sinh / Ä‘á»™t xuáº¥t",
+                    dataIndex: "diemTheoBTC_DamNhanDotXuat",
+                    key: "diemTheoBTC_DamNhanDotXuat",
+                    width: 150,
+                    align: "right",
+                    render: (val: number) => val != null ? Number(val).toFixed(2).replace(/\.00$/, '') : 0,
+                },
+                {
+                    title: "Tá»•ng Ä‘iá»ƒm thá»±c táº¿",
+                    dataIndex: "diemTheoBTC_TongThucTe",
+                    key: "diemTheoBTC_TongThucTe",
+                    width: 140,
+                    align: "right",
+                    render: (val: number) => (
+                        <Tag color="blue" style={{ fontWeight: 600, fontSize: "13px", padding: "2px 8px" }}>
+                            {val != null ? Number(val).toFixed(2).replace(/\.00$/, '') : 0}
+                        </Tag>
+                    ),
+                },
+            ],
+        },
+        {
+            title: "Káº¿t quáº£ thá»±c hiá»‡n nhiá»‡m vá»¥ cÃ¡c thÃ¡ng",
+            key: "ketQuaNVQuy",
+            children: [
+                {
+                    title: (
+                        <div style={{ textAlign: "center" }}>
+                            ThÃ¡ng thá»© nháº¥t<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(4)</span>
+                        </div>
+                    ),
+                    dataIndex: "diemTieuChiKQNhiemVu_ThangThuNhat",
+                    key: "diemTieuChiKQNhiemVu_ThangThuNhat",
+                    width: 130,
+                    align: "right",
+                    render: (val: number) => (val != null ? Number(val).toFixed(2).replace(/\.00$/, '') : "-"),
+                },
+                {
+                    title: (
+                        <div style={{ textAlign: "center" }}>
+                            ThÃ¡ng thá»© hai<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(5)</span>
+                        </div>
+                    ),
+                    dataIndex: "diemTieuChiKQNhiemVu_ThangThuHai",
+                    key: "diemTieuChiKQNhiemVu_ThangThuHai",
+                    width: 130,
+                    align: "right",
+                    render: (val: number) => (val != null ? Number(val).toFixed(2).replace(/\.00$/, '') : "-"),
+                },
+                {
+                    title: (
+                        <div style={{ textAlign: "center" }}>
+                            ThÃ¡ng cuá»‘i quÃ½<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(6)</span>
+                        </div>
+                    ),
+                    dataIndex: "diemTieuChiKQNhiemVu_ThangCuoi",
+                    key: "diemTieuChiKQNhiemVu_ThangCuoi",
+                    width: 130,
+                    align: "right",
+                    render: (val: number) => (val != null ? Number(val).toFixed(2).replace(/\.00$/, '') : "-"),
+                },
+                {
+                    title: (
+                        <div style={{ textAlign: "center" }}>
+                            Äiá»ƒm trung bÃ¬nh quÃ½<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(7)=(4+5+6)/3</span>
+                        </div>
+                    ),
+                    dataIndex: "diemTieuChiKQNhiemVu_TrungBinh",
+                    key: "diemTieuChiKQNhiemVu_TrungBinh",
+                    width: 160,
+                    align: "right",
+                    render: (val: number) =>
+                        val != null ? (
+                            <Tag color="blue" style={{ fontWeight: 600, fontSize: "13px", padding: "2px 8px" }}>
+                                {Number(val).toFixed(2).replace(/\.00$/, '')}
+                            </Tag>
+                        ) : (
+                            "-"
+                        ),
+                },
+            ],
+        },
+        {
+            title: (
+                <div style={{ textAlign: "center" }}>
+                    Äiá»ƒm tiÃªu chÃ­ chung<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(8)</span>
+                </div>
+            ),
+            dataIndex: "diemTieuChiChung",
+            key: "diemTieuChiChung",
+            width: 150,
+            align: "right",
+            render: (val: number) =>
+                val != null ? (
+                    <Tag color="purple" style={{ fontWeight: 600, fontSize: "13px" }}>
+                        {Number(val).toFixed(2).replace(/\.00$/, '')}
+                    </Tag>
+                ) : (
+                    "-"
+                ),
+        },
+        {
+            title: (
+                <div style={{ textAlign: "center" }}>
+                    Tá»•ng Ä‘iá»ƒm Ä‘Ã¡nh giÃ¡ QuÃ½<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(9)=(7)+(8)</span>
+                </div>
+            ),
+            dataIndex: "diemTheoDoiDanhGiaQuy",
+            key: "diemTheoDoiDanhGiaQuy",
+            width: 180,
+            align: "right",
+            render: (val: number) =>
+                val != null ? (
+                    <Tag color="green" style={{ fontWeight: 700, fontSize: "14px", padding: "4px 10px" }}>
+                        {Number(val).toFixed(2).replace(/\.00$/, '')}
+                    </Tag>
+                ) : (
+                    "-"
+                ),
+        },
+        {
+            title: (
+                <div style={{ textAlign: "center" }}>
+                    Ghi chÃº / Giáº£i trÃ¬nh<br /><span style={{ fontWeight: "normal", fontStyle: "italic", fontSize: "12px" }}>(10)</span>
+                </div>
+            ),
+            dataIndex: "ghiChu",
+            key: "ghiChu",
+            width: 220,
+            align: "left",
+            render: (val: string) => <Text type="secondary">{val || "-"}</Text>,
+        },
+    ];
+
+    return (

@@ -1,0 +1,52 @@
+/* ── Bảng kết quả ── */
+.thong-ke-theo-thoi-gian-results {
+  width: 100%;
+}
+
+.thong-ke-theo-thoi-gian-table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.thong-ke-theo-thoi-gian-table-title {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.thong-ke-theo-thoi-gian-table-range {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.thong-ke-theo-thoi-gian-table .ant-table-thead > tr > th {
+  background: #4472c4 !important;
+  color: #fff !important;
+  font-weight: 600;
+  text-align: center;
+  border-color: #fff !important;
+}
+
+.thong-ke-theo-thoi-gian-table .ant-table-tbody > tr > td {
+  vertical-align: middle;
+}
+
+.thong-ke-theo-thoi-gian-table .ant-table-tbody > tr:hover > td {
+  background: #f5f9ff;
+}
+
+.thong-ke-theo-thoi-gian-table .ant-table-summary > tr > td {
+  background: #e9edf5;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.thong-ke-theo-thoi-gian-table .ant-table-summary .thong-ke-theo-thoi-gian-total-value {
+  color: #0355a2;
+  font-size: 18px;
+}

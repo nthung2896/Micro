@@ -1,0 +1,97 @@
+# =============================================
+# Claude Code local settings (per-machine)
+# =============================================
+.claude/settings.local.json
+
+# =============================================
+# .NET / Visual Studio / Rider
+# =============================================
+*.user
+*.suo
+*.userprefs
+*.rsuser
+*.sln.docstates
+.vs/
+.idea/
+.vscode/
+
+# Build outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.dll
+*.pdb
+*.exe
+*.cache
+
+# Publish & packages
+publish/
+PublishProfiles/*.pubxml.user
+*.nupkg
+*.snupkg
+
+# Test results / coverage
+[Tt]est[Rr]esult*/
+*.VisualState.xml
+TestResult.xml
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# =============================================
+# Node.js / Next.js
+# =============================================
+node_modules/
+.next/
+out/
+.npm/
+.yarn/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =============================================
+# Runtime artifacts & uploads
+# =============================================
+**/Logs/
+**/logs/
+#**/wwwroot/uploads/
+**/wwwroot/Temp/
+
+# =============================================
+# Secrets / per-env configs (KHÔNG commit)
+# =============================================
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.*.local.json
+**/secrets.json
+.env
+.env.local
+.env.*.local
+
+# =============================================
+# OS / editor noise
+# =============================================
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+*.tmp
+*.bak
+*.swp
+*~
+
+
+# Khác
+Demo/
+DemoEmail/
+Documents/
+.claude/
+Docs/
+.hinetsync/setting.json
+.giao-dien
+giao-dien/
+du-an-cu/*

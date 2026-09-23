@@ -1,0 +1,138 @@
+/* Force overflow visible on all wrappers to allow native page-level sticky */
+.expand-table-body,
+.expand-table-body .ant-table-wrapper,
+.expand-table-body .ant-spin-nested-loading,
+.expand-table-body .ant-spin-container,
+.expand-table-body .ant-table,
+.expand-table-body .ant-table-container {
+  overflow: visible !important;
+}
+
+.expand-table-body .ant-table-body {
+  max-height: none !important;
+  overflow-y: visible !important;
+  /* Keep horizontal scroll on body */
+  overflow-x: auto !important; 
+}
+
+.kpi-allow-sticky,
+.kpi-allow-sticky > .ant-card-body,
+.kpi-allow-sticky .ant-spin-nested-loading,
+.kpi-allow-sticky .ant-spin-container {
+  overflow: visible !important;
+}
+
+.ios-glass-header {
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03) !important;
+}
+
+.ios-glass-header::after {
+  content: "";
+  position: absolute;
+  bottom: -24px;
+  left: 0;
+  right: 0;
+  height: 24px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+}
+
+.expand-table-body .ant-table-header {
+  position: sticky !important;
+  top: var(--table-header-top) !important;
+  z-index: 15 !important;
+}
+
+/* White mode is the application's supported appearance. Keep action buttons
+   readable even when a browser dark-mode extension rewrites native colors. */
+.kpi-white-mode .ant-btn.ant-btn-primary,
+.kpi-white-mode .ant-btn.ant-btn-variant-dashed {
+  background: #ffffff !important;
+  border-color: #1677ff !important;
+  color: #1677ff !important;
+  -webkit-text-fill-color: #1677ff !important;
+}
+
+.kpi-white-mode .ant-btn.ant-btn-primary:hover,
+.kpi-white-mode .ant-btn.ant-btn-primary:focus-visible,
+.kpi-white-mode .ant-btn.ant-btn-variant-dashed:hover,
+.kpi-white-mode .ant-btn.ant-btn-variant-dashed:focus-visible {
+  background: #f0f7ff !important;
+  border-color: #4096ff !important;
+  color: #1677ff !important;
+  -webkit-text-fill-color: #1677ff !important;
+}
+
+.kpi-white-mode .ant-btn.ant-btn-primary .anticon,
+.kpi-white-mode .ant-btn.ant-btn-variant-dashed .anticon {
+  color: currentColor !important;
+}
+
+.kpi-white-mode .kpi-attachment-cell .kpi-attachment-list-button.ant-btn,
+.kpi-white-mode .kpi-attachment-cell .kpi-attachment-list-button.ant-btn:hover,
+.kpi-white-mode .kpi-attachment-cell .kpi-attachment-list-button.ant-btn:focus-visible,
+.kpi-white-mode .kpi-attachment-cell .kpi-attachment-list-button.ant-btn:active {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #1f2937 !important;
+  -webkit-text-fill-color: #1f2937 !important;
+  box-shadow: none !important;
+}
+
+.kpi-white-mode .kpi-attachment-cell .kpi-attachment-list-button.ant-btn .anticon {
+  color: #1f2937 !important;
+}
+
+.kpi-white-mode .kpi-attachment-cell .kpi-attachment-badge .ant-badge-count {
+  background: #d9363e !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: 0 0 0 1px #ffffff !important;
+}
+
+/* Rounded Toggle Segmented */
+.kpi-toggle-rounded.ant-segmented {
+  border-radius: 9999px !important;
+  padding: 3px !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(4px);
+}
+
+.kpi-toggle-rounded.ant-segmented .ant-segmented-group {
+  border-radius: 9999px !important;
+}
+
+.kpi-toggle-rounded.ant-segmented .ant-segmented-item {
+  border-radius: 9999px !important;
+  color: #ffffff !important;
+  transition: all 0.25s ease !important;
+}
+
+.kpi-toggle-rounded.ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.kpi-toggle-rounded.ant-segmented .ant-segmented-item-selected {
+  background-color: #ffffff !important;
+  color: #0f766e !important;
+  font-weight: 700 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+.kpi-toggle-rounded.ant-segmented .ant-segmented-thumb {
+  border-radius: 9999px !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+

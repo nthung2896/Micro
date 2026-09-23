@@ -1,0 +1,16 @@
+.thong-ke-table-top-scroll-wrapper {
+  position: relative;
+}
+
+.thong-ke-table-top-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-left: var(--thong-ke-fixed-left-width, 220px);
+  width: calc(100% - var(--thong-ke-fixed-left-width, 220px));
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.thong-ke-table-top-scroll-inner {
+  height: 1px;
+}

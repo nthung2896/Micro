@@ -1,0 +1,24 @@
+.mg5 {
+  margin-bottom: 5px;
+}
+
+.mgButton10 {
+  margin-bottom: 10px;
+}
+
+.mgright5 {
+  margin-right: 5px;
+}
+
+.customCardShadow {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+.bannerThumbnail {
+  width: 80px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #f0f0f0;
+}

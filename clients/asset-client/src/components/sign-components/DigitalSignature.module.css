@@ -1,0 +1,131 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px !important;
+}
+
+.header :global(.ant-card-head) {
+  border-bottom: none;
+  padding: 20px 24px;
+}
+
+.header h2 {
+  color: white !important;
+  margin: 0;
+}
+
+.header p {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.instructionCard {
+  background-color: #f6f8fc;
+  border: 1px solid #e0e6f2;
+  border-radius: 8px !important;
+}
+
+.instructionCard :global(.ant-card-head) {
+  border-bottom: 1px solid #e0e6f2;
+}
+
+.instructionCard :global(ol) {
+  color: #262626;
+  line-height: 1.8;
+}
+
+.instructionCard :global(ol li) {
+  margin-bottom: 8px;
+}
+
+.instructionCard :global(ol li strong) {
+  color: #1890ff;
+}
+
+.certCard {
+  background-color: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px !important;
+}
+
+.certCard :global(.ant-card-head) {
+  background-color: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.certCard :global(.ant-card-head-title) {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.certItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background-color: white;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+}
+
+.certLabel {
+  font-size: 12px;
+  color: #8c8c8c;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.certValue {
+  font-size: 14px;
+  color: #1f1f1f;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.successCard {
+  background: linear-gradient(135deg, #f6ffed 0%, #f9f9f9 100%);
+  border: 2px solid #b7eb8f;
+  border-radius: 8px !important;
+}
+
+.successCard :global(.ant-card-head) {
+  border-bottom: 1px solid #b7eb8f;
+}
+
+.successCard p {
+  margin: 0;
+}
+
+.actionCard {
+  background-color: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  border-radius: 8px !important;
+}
+
+.actionCard :global(.ant-card-body) {
+  padding: 16px 24px;
+}
+
+/* Responsive styles */
+@media (max-width: 576px) {
+  .container {
+    gap: 12px;
+  }
+
+  .header :global(.ant-card-body) {
+    padding: 12px 16px;
+  }
+
+  .certItem {
+    padding: 8px;
+  }
+
+  .certValue {
+    font-size: 13px;
+  }
+}

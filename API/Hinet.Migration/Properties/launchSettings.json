@@ -1,0 +1,112 @@
+{
+  "profiles": {
+    "CompanyInfo (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table CompanyInfo --dry-run"
+    },
+    "CompanyInfo (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table CompanyInfo"
+    },
+    "AppUser (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AppUser --dry-run"
+    },
+    "AppUser (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AppUser"
+    },
+    "Role (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table Role --dry-run"
+    },
+    "Role (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table Role"
+    },
+    "UserRole (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table UserRole --dry-run"
+    },
+    "UserRole (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table UserRole"
+    },
+    "Module (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table Module --dry-run"
+    },
+    "Module (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table Module"
+    },
+    "Operation (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table Operation --dry-run"
+    },
+    "Operation (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table Operation"
+    },
+    "RoleOperation (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table RoleOperation --dry-run"
+    },
+    "RoleOperation (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table RoleOperation"
+    },
+    "WebsiteInfo (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table WebsiteInfo --dry-run"
+    },
+    "WebsiteInfo (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table WebsiteInfo"
+    },
+    "AppInfo (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AppInfo --dry-run"
+    },
+    "AppInfo (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AppInfo"
+    },
+    "WebsiteFile (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table WebsiteFile --dry-run"
+    },
+    "WebsiteFile (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table WebsiteFile"
+    },
+    "AppFile (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AppFile --dry-run"
+    },
+    "AppFile (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AppFile"
+    },
+    "AuthConstractCategory (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AuthConstractCategory --dry-run"
+    },
+    "AuthConstractCategory (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table AuthConstractCategory"
+    },
+    "ContractFile (dry-run)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table ContractFile --dry-run"
+    },
+    "ContractFile (chạy thật)": {
+      "commandName": "Project",
+      "commandLineArgs": "--table ContractFile"
+    },
+    "List migrators": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    }
+  }
+}

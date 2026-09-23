@@ -1,0 +1,22 @@
+.mg5 {
+  margin-bottom: 5px;
+}
+
+.mgButton10 {
+  margin-bottom: 10px;
+}
+
+.mgright5 {
+  margin-right: 5px;
+}
+
+.customCardShadow {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  /* Màu và độ mờ */
+  border-radius: 8px;
+  /* Tùy chỉnh bo góc */
+}
+
+.colorKetXuat {
+  background-color: green;
+}
