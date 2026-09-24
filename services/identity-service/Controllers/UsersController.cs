@@ -27,6 +27,24 @@ namespace IdentityService.Controllers
             _passwordHasher = new PasswordHasher<AppUser>();
         }
 
+        private static string FixVietnameseEncoding(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text ?? string.Empty;
+            if (text.Contains("Ã") || text.Contains("á»") || text.Contains("áº") || text.Contains("Æ") || text.Contains("Ä") || text.Contains("â"))
+            {
+                try
+                {
+                    byte[] bytes = System.Text.Encoding.GetEncoding("ISO-8859-1").GetBytes(text);
+                    string decoded = System.Text.Encoding.UTF8.GetString(bytes);
+                    if (!string.IsNullOrWhiteSpace(decoded)) return decoded;
+                }
+                catch
+                {
+                }
+            }
+            return text;
+        }
+
         /// <summary>
         /// Lấy danh sách toàn bộ người dùng kèm vai trò
         /// </summary>
@@ -46,6 +64,25 @@ namespace IdentityService.Controllers
             }
 
             var users = await query.OrderByDescending(u => u.CreatedDate).ToListAsync();
+
+            // Auto-fix FullName encoding
+            bool hasChanges = false;
+            foreach (var u in users)
+            {
+                if (!string.IsNullOrEmpty(u.FullName))
+                {
+                    var fixedName = FixVietnameseEncoding(u.FullName);
+                    if (fixedName != u.FullName)
+                    {
+                        u.FullName = fixedName;
+                        hasChanges = true;
+                    }
+                }
+            }
+            if (hasChanges)
+            {
+                await _dbContext.SaveChangesAsync();
+            }
 
             // Load roles mapping
             var userRoles = await (from ur in _dbContext.UserRole

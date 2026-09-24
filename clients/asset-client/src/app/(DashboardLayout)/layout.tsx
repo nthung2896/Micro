@@ -22,7 +22,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/vi";
 import NProgress from "nprogress";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import "@/app/assets/css/global.css";
@@ -77,12 +77,32 @@ export default function RootLayout({
       : TEMPLATE.SIDE_NAV_WIDTH;
   };
 
+  const [accessDenied, setAccessDenied] = useState<boolean | null>(null);
+
   const handleGetUserInfo = async () => {
     try {
       const response = await authService.getInfo();
       if (response) {
-        dispatch(setUserInfo(response));
-        dispatch(setMenuData(response));
+        const resData = (response as any).data || response;
+        const userRoles: string[] = [
+          ...(resData.listRole || []),
+          ...(resData.roles || []),
+          ...(resData.vaiTro || []),
+          resData.type || ''
+        ].filter(Boolean);
+        
+        const hasAssetRole = userRoles.some(r => {
+          const u = String(r).toUpperCase();
+          return u === "ROLE_TAISAN" || u === "ADMIN" || u === "MANAGER";
+        });
+
+        if (!hasAssetRole) {
+          setAccessDenied(true);
+        } else {
+          setAccessDenied(false);
+          dispatch(setUserInfo(response));
+          dispatch(setMenuData(response));
+        }
       }
     } catch (error) {
       console.log(error);
@@ -101,9 +121,7 @@ export default function RootLayout({
   };
 
   useEffect(() => {
-    if (userInfo == null || menuData == null) {
-      handleGetUserInfo();
-    }
+    handleGetUserInfo();
     handleGetAppConfig();
   }, []);
 
@@ -118,6 +136,41 @@ export default function RootLayout({
       NProgress.done();
     };
   }, [pathname, searchParams]);
+
+  if (accessDenied === true) {
+    return (
+      <ConfigProvider theme={lightTheme} locale={locale}>
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
+          <div style={{ background: '#ffffff', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', textAlign: 'center', maxWidth: '520px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔒</div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+              403 - Chưa Được Phân Quyền Phân Hệ
+            </h2>
+            <p style={{ color: '#4b5563', fontSize: '14px', lineHeight: 1.6, marginBottom: '24px' }}>
+              Tài khoản <strong>@{userInfo?.userName || 'người dùng'}</strong> chưa có vai trò <strong>Quản lý Cơ sở vật chất & Tài sản (ROLE_TAISAN)</strong>. Vui lòng liên hệ Quản trị viên tại Cổng SSO Portal để được cấp quyền.
+            </p>
+            <a
+              href="http://localhost:3000"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                background: '#005baa',
+                color: '#ffffff',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '14px',
+                textDecoration: 'none'
+              }}
+            >
+              <span>Quay Lại Cổng SSO Portal</span>
+            </a>
+          </div>
+        </div>
+      </ConfigProvider>
+    );
+  }
 
   return (
     <ConfigProvider theme={lightTheme} locale={locale}>

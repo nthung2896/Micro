@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,8 +23,26 @@ namespace IdentityService.Controllers
             _dbContext = dbContext;
         }
 
+        private static string FixVietnameseEncoding(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text;
+            if (text.Contains("Ã") || text.Contains("á»") || text.Contains("áº") || text.Contains("Æ") || text.Contains("Ä") || text.Contains("â"))
+            {
+                try
+                {
+                    byte[] bytes = Encoding.GetEncoding("ISO-8859-1").GetBytes(text);
+                    string decoded = Encoding.UTF8.GetString(bytes);
+                    if (!string.IsNullOrWhiteSpace(decoded)) return decoded;
+                }
+                catch
+                {
+                }
+            }
+            return text;
+        }
+
         /// <summary>
-        /// Lấy danh sách toàn bộ vai trò
+        /// Lấy danh sách toàn bộ vai trò và tự động sửa lỗi font tiếng Việt nếu có
         /// </summary>
         [HttpGet]
         public async Task<IActionResult> GetRoles([FromQuery] string? search)
@@ -47,12 +66,50 @@ namespace IdentityService.Controllers
                     new Role { Id = Guid.NewGuid(), Code = "ROLE_TAISAN", Name = "Quản lý Cơ sở vật chất & Tài sản", Type = "ASSET", IsActive = true },
                     new Role { Id = Guid.NewGuid(), Code = "ROLE_KPI", Name = "Quản lý Đánh giá KPI & Thi đua", Type = "KPI", IsActive = true },
                     new Role { Id = Guid.NewGuid(), Code = "ROLE_ROOM", Name = "Quản lý Phòng trọ & Dịch vụ", Type = "ROOM", IsActive = true },
-                    new Role { Id = Guid.NewGuid(), Code = "USER", Name = "Cán bộ nhân viên", Type = "GENERAL", IsActive = true }
+                    new Role { Id = Guid.NewGuid(), Code = "USER", Name = "Người dùng thông thường", Type = "GENERAL", IsActive = true }
                 };
 
                 _dbContext.Role.AddRange(defaultRoles);
                 await _dbContext.SaveChangesAsync();
                 roles = defaultRoles;
+            }
+            else
+            {
+                // Tự động kiểm tra và sửa lỗi encoding tiếng Việt bị lỗi lưu trước đó trong DB
+                bool hasChanges = false;
+                foreach (var role in roles)
+                {
+                    // Fix trường hợp hardcoded mapping
+                    if (role.Code == "ADMIN" && (role.Name.Contains("Quá") || role.Name.Contains("Ã")))
+                    {
+                        role.Name = "Quản trị viên toàn hệ thống";
+                        hasChanges = true;
+                    }
+                    else if (role.Code == "USER" && (role.Name.Contains("NgÆ") || role.Name.Contains("Ã")))
+                    {
+                        role.Name = "Người dùng thông thường";
+                        hasChanges = true;
+                    }
+                    else if (role.Code == "MANAGER" && (role.Name.Contains("CÃ") || role.Name.Contains("bá")))
+                    {
+                        role.Name = "Cán bộ quản lý";
+                        hasChanges = true;
+                    }
+                    else
+                    {
+                        var fixedName = FixVietnameseEncoding(role.Name);
+                        if (fixedName != role.Name)
+                        {
+                            role.Name = fixedName;
+                            hasChanges = true;
+                        }
+                    }
+                }
+
+                if (hasChanges)
+                {
+                    await _dbContext.SaveChangesAsync();
+                }
             }
 
             return Ok(ApiResponse<object>.Ok(roles, "Lấy danh sách vai trò thành công"));
@@ -81,7 +138,7 @@ namespace IdentityService.Controllers
                 Id = Guid.NewGuid(),
                 Code = code,
                 Name = request.Name.Trim(),
-                Type = request.Type?.Trim() ?? "CUSTOM",
+                Type = request.Type?.Trim() ?? "GENERAL",
                 IsActive = true,
                 CreatedDate = DateTime.UtcNow,
                 IsDeleted = false
@@ -105,8 +162,16 @@ namespace IdentityService.Controllers
                 return NotFound(ApiResponse<object>.Fail("Không tìm thấy vai trò"));
             }
 
-            role.Name = request.Name?.Trim() ?? role.Name;
-            role.Type = request.Type?.Trim() ?? role.Type;
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                role.Name = request.Name.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Type))
+            {
+                role.Type = request.Type.Trim();
+            }
+
             if (request.IsActive.HasValue)
             {
                 role.IsActive = request.IsActive.Value;

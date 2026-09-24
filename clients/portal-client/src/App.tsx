@@ -18,10 +18,12 @@ import {
   Lock,
   Unlock,
   Trash2,
+  Edit,
   UserCheck,
   UserX,
   X,
-  Layers
+  Layers,
+  Building2
 } from 'lucide-react';
 
 interface AppItem {
@@ -30,8 +32,8 @@ interface AppItem {
   category: string;
   description: string;
   icon: React.ElementType;
-  gradient: string;
-  borderColor: string;
+  iconBg: string;
+  iconColor: string;
   badge: string;
   servicePort: string;
   clientUrl: string;
@@ -58,15 +60,42 @@ interface RoleItem {
   isActive: boolean;
 }
 
+// Hàm tự động chuẩn hóa & giải mã tiếng Việt bị lỗi font (Mojibake UTF-8)
+export const decodeVietnamese = (text?: string): string => {
+  if (!text) return '';
+  
+  // Ánh xạ các vai trò mặc định hay gặp lỗi font
+  if (text.includes('Quá') || text.includes('Quáº£n') || text.includes('viÃªn toÃ n')) {
+    return 'Quản trị viên toàn hệ thống';
+  }
+  if (text.includes('CÃ') || text.includes('CÃ¡n') || text.includes('quáo£n lÃ½')) {
+    return 'Cán bộ quản lý';
+  }
+  if (text.includes('NgÆ') || text.includes('NgÆ°á') || text.includes('dÃ¹ng thÃ´ng')) {
+    return 'Người dùng thông thường';
+  }
+
+  // Thử decode chuẩn nếu là chuỗi UTF-8 bị ép sang ISO-8859-1
+  if (text.includes('Ã') || text.includes('á»') || text.includes('áº') || text.includes('Æ') || text.includes('Ä')) {
+    try {
+      return decodeURIComponent(escape(text));
+    } catch {
+      return text;
+    }
+  }
+
+  return text;
+};
+
 const APPS: AppItem[] = [
   {
     id: 'asset',
     name: 'Hệ Thống Quản Lý Tài Sản',
     category: 'Cơ Sở Vật Chất & Thiết Bị',
-    description: 'Quản lý vòng đời tài sản, trang thiết bị văn phòng, theo dõi khấu hao, cấp phát và lịch bảo dưỡng.',
+    description: 'Quản lý vòng đời tài sản, trang thiết bị văn phòng, theo dõi khấu hao, cấp phát và lịch bảo dưỡng tập trung.',
     icon: PackageCheck,
-    gradient: 'from-amber-500 to-rose-600',
-    borderColor: 'rgba(245, 158, 11, 0.4)',
+    iconBg: '#e6f4ff',
+    iconColor: '#005baa',
     badge: 'asset-service:5005',
     servicePort: '5005',
     clientUrl: 'http://localhost:9797/auth/sso-callback',
@@ -79,8 +108,8 @@ const APPS: AppItem[] = [
     category: 'Nghiệp Vụ & Đánh Giá Thi Đua',
     description: 'Lập kế hoạch, theo dõi tiến độ nhiệm vụ và tổ chức hội đồng chấm điểm thi đua cán bộ, công chức.',
     icon: BarChart3,
-    gradient: 'from-blue-600 to-indigo-600',
-    borderColor: 'rgba(99, 102, 241, 0.4)',
+    iconBg: '#f0f5ff',
+    iconColor: '#2f54eb',
     badge: 'kpi-service:5003',
     servicePort: '5003',
     clientUrl: 'http://localhost:9696/auth/sso-callback',
@@ -93,8 +122,8 @@ const APPS: AppItem[] = [
     category: 'Thương Mại & Thanh Toán',
     description: 'Đăng tin phòng trọ, cấu hình bảng giá tin VIP, nạp tiền ví tài khoản và khuyến mại bậc thang.',
     icon: Home,
-    gradient: 'from-emerald-500 to-teal-600',
-    borderColor: 'rgba(168, 85, 247, 0.4)',
+    iconBg: '#f6ffed',
+    iconColor: '#52c41a',
     badge: 'room-service:5002',
     servicePort: '5002',
     clientUrl: 'http://localhost:4000/auth/sso-callback',
@@ -107,8 +136,8 @@ const APPS: AppItem[] = [
     category: 'Tài Nguyên & Media',
     description: 'Lưu trữ tài liệu đính kèm, văn bản pháp luật, biểu mẫu báo cáo và xử lý media tập trung.',
     icon: FolderGit2,
-    gradient: 'from-purple-500 to-indigo-600',
-    borderColor: 'rgba(168, 85, 247, 0.4)',
+    iconBg: '#f9f0ff',
+    iconColor: '#722ed1',
     badge: 'file-service:5004',
     servicePort: '5004',
     clientUrl: 'http://localhost:5004/api/files/ping',
@@ -148,7 +177,10 @@ export default function App() {
   const [isAssignRoleOpen, setIsAssignRoleOpen] = useState(false);
   const [isResetPassOpen, setIsResetPassOpen] = useState(false);
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
+  const [isEditRoleOpen, setIsEditRoleOpen] = useState(false);
+  
   const [selectedUser, setSelectedUser] = useState<UserItem | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleItem | null>(null);
 
   // Form Fields
   const [newUserName, setNewUserName] = useState('');
@@ -164,6 +196,9 @@ export default function App() {
   const [newRoleCode, setNewRoleCode] = useState('');
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleType, setNewRoleType] = useState('GENERAL');
+
+  const [editRoleName, setEditRoleName] = useState('');
+  const [editRoleType, setEditRoleType] = useState('GENERAL');
 
   // Show Toast
   const notify = (text: string, type: 'success' | 'error' = 'success') => {
@@ -181,7 +216,11 @@ export default function App() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setUserList(json.data);
+          const mappedUsers = json.data.map((u: UserItem) => ({
+            ...u,
+            fullName: decodeVietnamese(u.fullName)
+          }));
+          setUserList(mappedUsers);
         }
       }
     } catch (_) {
@@ -198,7 +237,11 @@ export default function App() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
-          setRoleList(json.data);
+          const mappedRoles = json.data.map((r: RoleItem) => ({
+            ...r,
+            name: decodeVietnamese(r.name)
+          }));
+          setRoleList(mappedRoles);
         }
       }
     } catch (_) {}
@@ -232,7 +275,7 @@ export default function App() {
           const json = await res.json();
           if (json.success && (json.data?.token || json.data?.accessToken)) {
             activeToken = json.data.token || json.data.accessToken;
-            if (json.data.fullName) fullName = json.data.fullName;
+            if (json.data.fullName) fullName = decodeVietnamese(json.data.fullName);
             if (json.data.roles) rolesArr = json.data.roles;
           }
         }
@@ -270,6 +313,14 @@ export default function App() {
   const handleLaunchApp = (app: AppItem, sameTab = false) => {
     const authToken = token || localStorage.getItem('sso_portal_token');
     if (!authToken) return;
+
+    const userRoles = user?.roles || [];
+    const hasAccess = !app.requiredRole || userRoles.some(r => r === 'ADMIN' || r === app.requiredRole);
+
+    if (!hasAccess) {
+      notify(`Tài khoản "${user?.username}" chưa được cấp quyền truy cập phân hệ "${app.name}"!`, 'error');
+      return;
+    }
 
     const targetUrl = `${app.clientUrl}?token=${encodeURIComponent(authToken)}`;
     if (sameTab) {
@@ -433,8 +484,45 @@ export default function App() {
     }
   };
 
+  const handleOpenEditRole = (r: RoleItem) => {
+    setSelectedRole(r);
+    setEditRoleName(decodeVietnamese(r.name));
+    setEditRoleType(r.type || 'GENERAL');
+    setIsEditRoleOpen(true);
+  };
+
+  const handleSaveEditRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRole || !editRoleName.trim()) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/roles/${selectedRole.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editRoleName.trim(),
+          type: editRoleType
+        })
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(`Đã cập nhật tên vai trò "${selectedRole.code}" thành công!`);
+        setIsEditRoleOpen(false);
+        fetchRoles();
+      } else {
+        notify(json.message || 'Lỗi cập nhật vai trò', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
   const handleDeleteRole = async (r: RoleItem) => {
-    if (!confirm(`Bạn có chắc muốn xóa vai trò "${r.name}" (${r.code})?`)) return;
+    if (!confirm(`Bạn có chắc muốn xóa vai trò "${decodeVietnamese(r.name)}" (${r.code})?`)) return;
     try {
       const res = await fetch(`${API_BASE}/roles/${r.id}`, {
         method: 'DELETE',
@@ -459,36 +547,37 @@ export default function App() {
   );
 
   const filteredRoles = roleList.filter(r => 
-    r.name.toLowerCase().includes(roleSearch.toLowerCase()) ||
-    r.code.toLowerCase().includes(roleSearch.toLowerCase())
+    (r.name && r.name.toLowerCase().includes(roleSearch.toLowerCase())) ||
+    (r.code && r.code.toLowerCase().includes(roleSearch.toLowerCase()))
   );
 
   // ----------------------------------------------------
-  // Màn hình 1: Đăng nhập SSO (Central SSO Login)
+  // Màn hình 1: Đăng nhập SSO (Enterprise Clean Light Style)
   // ----------------------------------------------------
   if (!token) {
     return (
-      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-        <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '36px' }}>
+      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', backgroundColor: '#f0f2f5' }}>
+        <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '36px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
             <div style={{ 
-              width: '56px', 
-              height: '56px', 
-              borderRadius: '16px', 
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              width: '52px', 
+              height: '52px', 
+              borderRadius: '12px', 
+              backgroundColor: '#e6f4ff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px auto',
-              boxShadow: '0 8px 24px rgba(99, 102, 241, 0.4)'
+              color: '#005baa',
+              border: '1px solid #91caff'
             }}>
-              <ShieldCheck size={32} color="#ffffff" />
+              <Building2 size={28} />
             </div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '6px', letterSpacing: '-0.02em' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#1f2937', marginBottom: '6px' }}>
               Cổng Đăng Nhập Tập Trung (SSO)
             </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>
-              Quản trị người dùng & Mở các phân hệ Microservices
+            <p style={{ color: '#6b7280', fontSize: '13.5px' }}>
+              Hệ thống Quản trị Doanh nghiệp & Phân hệ Dịch vụ
             </p>
           </div>
 
@@ -497,22 +586,22 @@ export default function App() {
               display: 'flex', 
               alignItems: 'center', 
               gap: '10px', 
-              padding: '12px 16px', 
-              background: 'rgba(239, 68, 68, 0.15)', 
-              border: '1px solid rgba(239, 68, 68, 0.3)', 
-              borderRadius: '10px', 
-              color: '#f87171', 
+              padding: '10px 14px', 
+              background: '#fff2f0', 
+              border: '1px solid #ffccc7', 
+              borderRadius: '6px', 
+              color: '#ff4d4f', 
               fontSize: '13px', 
-              marginBottom: '20px' 
+              marginBottom: '18px' 
             }}>
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{errorMsg}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '18px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
                 Tài khoản đăng nhập
               </label>
               <input
@@ -526,7 +615,7 @@ export default function App() {
             </div>
 
             <div style={{ marginBottom: '22px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '13.5px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
                 Mật khẩu
               </label>
               <input
@@ -542,16 +631,16 @@ export default function App() {
             <button
               type="submit"
               className="btn-primary"
-              style={{ width: '100%', height: '44px', fontSize: '15px' }}
+              style={{ width: '100%', height: '40px', fontSize: '14.5px' }}
               disabled={isLoading}
             >
-              {isLoading ? 'Đang xác thực...' : 'Đăng Nhập Hệ Thống'}
+              {isLoading ? 'Đang xác thực...' : 'Đăng Nhập'}
             </button>
           </form>
 
-          <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid var(--border-card)', paddingTop: '16px' }}>
-            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-              Mặc định Admin: <strong>admin</strong> / <strong>123456</strong>
+          <div style={{ marginTop: '20px', textAlign: 'center', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
+            <span style={{ fontSize: '12.5px', color: '#8c8c8c' }}>
+              Tài khoản mặc định: <strong>admin</strong> / <strong>123456</strong>
             </span>
           </div>
         </div>
@@ -560,91 +649,92 @@ export default function App() {
   }
 
   // ----------------------------------------------------
-  // Màn hình 2: Portal Dashboard & Central Management
+  // Màn hình 2: Corporate Header & Enterprise Management
   // ----------------------------------------------------
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f0f2f5' }}>
       {/* Toast Notification */}
       {toastMsg && (
         <div style={{
           position: 'fixed',
-          top: '24px',
-          right: '24px',
+          top: '20px',
+          right: '20px',
           zIndex: 9999,
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
-          padding: '14px 20px',
-          background: toastMsg.type === 'success' ? '#065f46' : '#991b1b',
-          color: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-          border: '1px solid rgba(255,255,255,0.2)',
-          fontSize: '14px',
+          gap: '8px',
+          padding: '12px 18px',
+          background: toastMsg.type === 'success' ? '#f6ffed' : '#fff2f0',
+          color: toastMsg.type === 'success' ? '#389e0d' : '#cf1322',
+          borderRadius: '6px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          border: `1px solid ${toastMsg.type === 'success' ? '#b7eb8f' : '#ffccc7'}`,
+          fontSize: '13.5px',
           fontWeight: 500
         }}>
-          {toastMsg.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {toastMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span>{toastMsg.text}</span>
         </div>
       )}
 
-      {/* Top Navigation Bar */}
+      {/* Corporate Header Nav */}
       <header style={{
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        background: 'rgba(11, 15, 25, 0.85)',
-        borderBottom: '1px solid var(--border-card)',
-        padding: '0 24px'
+        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #e5e7eb',
+        padding: '0 24px',
+        boxShadow: '0 1px 4px rgba(0, 21, 41, 0.04)'
       }}>
-        <div style={{ maxWidth: '1400px', margin: '0 auto', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Logo Brand */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              backgroundColor: '#005baa',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)'
+              color: '#ffffff'
             }}>
-              <ShieldCheck size={22} color="#ffffff" />
+              <ShieldCheck size={20} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '-0.02em', color: '#ffffff' }}>
-                CENTRAL PORTAL & IDENTITY HUB
+              <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827', letterSpacing: '-0.01em' }}>
+                HỆ THỐNG QUẢN TRỊ TẬP TRUNG (SSO PORTAL)
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
-                API Gateway: 5000 | Identity: 5001
+              <div style={{ fontSize: '11.5px', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#52c41a', display: 'inline-block' }}></span>
+                Gateway: 5000 | Identity Service: 5001
               </div>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '8px', background: 'rgba(255, 255, 255, 0.04)', padding: '4px', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+          {/* Navigation Segmented Tabs */}
+          <div style={{ display: 'flex', gap: '4px', background: '#f3f4f6', padding: '3px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
             <button
               onClick={() => setActiveTab('launcher')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '8px',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                background: activeTab === 'launcher' ? 'var(--primary)' : 'transparent',
-                color: activeTab === 'launcher' ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: 600,
-                fontSize: '13.5px',
+                backgroundColor: activeTab === 'launcher' ? '#ffffff' : 'transparent',
+                color: activeTab === 'launcher' ? '#005baa' : '#4b5563',
+                fontWeight: activeTab === 'launcher' ? 600 : 500,
+                fontSize: '13px',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                boxShadow: activeTab === 'launcher' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s'
               }}
             >
-              <Layers size={16} />
+              <Layers size={15} />
               <span>Hệ Thống Phân Hệ</span>
             </button>
 
@@ -653,21 +743,22 @@ export default function App() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '8px',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                background: activeTab === 'users' ? 'var(--primary)' : 'transparent',
-                color: activeTab === 'users' ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: 600,
-                fontSize: '13.5px',
+                backgroundColor: activeTab === 'users' ? '#ffffff' : 'transparent',
+                color: activeTab === 'users' ? '#005baa' : '#4b5563',
+                fontWeight: activeTab === 'users' ? 600 : 500,
+                fontSize: '13px',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                boxShadow: activeTab === 'users' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s'
               }}
             >
-              <Users size={16} />
+              <Users size={15} />
               <span>Quản Trị Người Dùng</span>
-              <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '10px' }}>
+              <span style={{ fontSize: '11px', background: activeTab === 'users' ? '#e6f4ff' : '#e5e7eb', color: activeTab === 'users' ? '#005baa' : '#6b7280', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
                 {userList.length}
               </span>
             </button>
@@ -677,126 +768,166 @@ export default function App() {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                borderRadius: '8px',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '6px',
                 border: 'none',
-                background: activeTab === 'roles' ? 'var(--primary)' : 'transparent',
-                color: activeTab === 'roles' ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: 600,
-                fontSize: '13.5px',
+                backgroundColor: activeTab === 'roles' ? '#ffffff' : 'transparent',
+                color: activeTab === 'roles' ? '#005baa' : '#4b5563',
+                fontWeight: activeTab === 'roles' ? 600 : 500,
+                fontSize: '13px',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                boxShadow: activeTab === 'roles' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s'
               }}
             >
-              <Shield size={16} />
+              <Shield size={15} />
               <span>Quản Trị Vai Trò</span>
-              <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.2)', padding: '2px 6px', borderRadius: '10px' }}>
+              <span style={{ fontSize: '11px', background: activeTab === 'roles' ? '#e6f4ff' : '#e5e7eb', color: activeTab === 'roles' ? '#005baa' : '#6b7280', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
                 {roleList.length}
               </span>
             </button>
           </div>
 
           {/* User Profile & Logout */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#ffffff' }}>{user?.fullName}</div>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>@{user?.username} ({user?.role})</div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#1f2937' }}>{user?.fullName}</div>
+              <div style={{ fontSize: '11.5px', color: '#6b7280' }}>@{user?.username} ({user?.role})</div>
             </div>
             <button
               onClick={handleLogout}
               className="btn-secondary"
               title="Đăng xuất"
-              style={{ padding: '8px 12px' }}
+              style={{ padding: '6px 10px' }}
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
               <span>Đăng xuất</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div style={{ flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '32px 24px' }}>
+      {/* Main Container */}
+      <div style={{ flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', padding: '24px' }}>
         
         {/* ==================================================== */}
         {/* TAB 1: APP LAUNCHER                                  */}
         {/* ==================================================== */}
         {activeTab === 'launcher' && (
           <div>
-            <div style={{ marginBottom: '32px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px', color: '#ffffff' }}>
-                Trung Tâm Khởi Chạy Ứng Dụng (Single Sign-On Hub)
+            <div style={{ marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>
+                Hệ Thống Phân Hệ Trực Thuộc
               </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                Chọn phân hệ để truy cập ngay với phiên đăng nhập SSO tập trung của bạn.
+              <p style={{ color: '#6b7280', fontSize: '13.5px' }}>
+                Click để mở trực tiếp phân hệ nghiệp vụ với phiên đăng nhập SSO tập trung.
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '20px' }}>
               {APPS.map((app) => {
                 const IconComponent = app.icon;
+                const userRoles = user?.roles || [];
+                const hasAccess = !app.requiredRole || userRoles.some(r => r === 'ADMIN' || r === app.requiredRole);
+
                 return (
                   <div
                     key={app.id}
-                    className="glass-panel"
+                    className="corporate-card"
                     style={{
-                      padding: '28px',
+                      padding: '24px',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      borderLeft: `4px solid ${app.borderColor}`
+                      borderTop: `3px solid ${hasAccess ? app.iconColor : '#d9d9d9'}`,
+                      opacity: hasAccess ? 1 : 0.82
                     }}
                   >
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                         <div style={{
-                          width: '50px',
-                          height: '50px',
-                          borderRadius: '14px',
-                          background: `linear-gradient(135deg, ${app.borderColor} 0%, rgba(15, 23, 42, 0.8) 100%)`,
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '10px',
+                          backgroundColor: hasAccess ? app.iconBg : '#f5f5f5',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          border: '1px solid rgba(255, 255, 255, 0.15)'
+                          color: hasAccess ? app.iconColor : '#8c8c8c'
                         }}>
-                          <IconComponent size={26} color="#ffffff" />
+                          <IconComponent size={22} />
                         </div>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '4px 10px',
-                          borderRadius: '20px',
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          color: 'var(--text-secondary)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)'
-                        }}>
-                          {app.badge}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: hasAccess ? '#f6ffed' : '#fff2f0',
+                            color: hasAccess ? '#389e0d' : '#cf1322',
+                            border: `1px solid ${hasAccess ? '#b7eb8f' : '#ffccc7'}`
+                          }}>
+                            {hasAccess ? '✓ Có quyền' : '🔒 Chưa phân quyền'}
+                          </span>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 500,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: '#f3f4f6',
+                            color: '#4b5563',
+                            border: '1px solid #e5e7eb'
+                          }}>
+                            {app.badge}
+                          </span>
+                        </div>
                       </div>
 
-                      <div style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent-cyan)', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '11.5px', fontWeight: 600, color: hasAccess ? '#005baa' : '#8c8c8c', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }}>
                         {app.category}
                       </div>
-                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', marginBottom: '10px' }}>
+                      <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {app.name}
+                        {!hasAccess && <Lock size={15} style={{ color: '#cf1322' }} />}
                       </h3>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13.5px', lineHeight: 1.5, marginBottom: '20px' }}>
+                      <p style={{ color: '#6b7280', fontSize: '13px', lineHeight: 1.5, marginBottom: '18px' }}>
                         {app.description}
                       </p>
                     </div>
 
-                    <div style={{ borderTop: '1px solid var(--border-card)', paddingTop: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        Database: <strong>{app.dbName}</strong>
+                    <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                        Database: <strong style={{ color: '#374151' }}>{app.dbName}</strong>
                       </span>
                       <button
                         onClick={() => handleLaunchApp(app)}
-                        className="btn-primary"
-                        style={{ padding: '8px 18px', fontSize: '13.5px' }}
+                        disabled={!hasAccess}
+                        style={{
+                          padding: '6px 14px',
+                          fontSize: '13px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          borderRadius: '6px',
+                          cursor: hasAccess ? 'pointer' : 'not-allowed',
+                          backgroundColor: hasAccess ? '#005baa' : '#f5f5f5',
+                          color: hasAccess ? '#ffffff' : '#8c8c8c',
+                          border: hasAccess ? 'none' : '1px solid #d9d9d9',
+                          fontWeight: 500
+                        }}
                       >
-                        <span>Mở Phân Hệ</span>
-                        <ExternalLink size={15} />
+                        {hasAccess ? (
+                          <>
+                            <span>Truy Cập</span>
+                            <ExternalLink size={14} />
+                          </>
+                        ) : (
+                          <>
+                            <Lock size={14} />
+                            <span>Khóa Quyền</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -811,35 +942,35 @@ export default function App() {
         {/* ==================================================== */}
         {activeTab === 'users' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px', color: '#ffffff' }}>
-                  Quản Trị Người Dùng Tập Trung (`Identity_DB`)
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>
+                  Quản Trị Người Dùng & Phân Vai Trò
                 </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                  Tạo tài khoản và phân quyền vai trò cho toàn bộ các dịch vụ Asset, KPI, Room.
+                <p style={{ color: '#6b7280', fontSize: '13.5px' }}>
+                  Danh sách tài khoản toàn cơ quan trong cơ sở dữ liệu `Identity_DB`.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={fetchUsers} className="btn-secondary" title="Làm mới">
-                  <RefreshCw size={16} />
+                  <RefreshCw size={14} />
                   <span>Tải lại</span>
                 </button>
                 <button onClick={() => setIsCreateUserOpen(true)} className="btn-primary">
-                  <Plus size={16} />
-                  <span>Thêm Người Dùng Mới</span>
+                  <Plus size={15} />
+                  <span>Thêm Người Dùng</span>
                 </button>
               </div>
             </div>
 
             {/* Search Bar */}
-            <div style={{ marginBottom: '20px', position: 'relative', maxWidth: '400px' }}>
-              <Search size={18} style={{ position: 'absolute', left: '14px', top: '12px', color: 'var(--text-muted)' }} />
+            <div style={{ marginBottom: '16px', position: 'relative', maxWidth: '360px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#9ca3af' }} />
               <input
                 type="text"
                 className="input-field"
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '36px' }}
                 placeholder="Tìm theo tên đăng nhập, họ tên, email..."
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
@@ -847,76 +978,76 @@ export default function App() {
             </div>
 
             {/* Users Table */}
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+            <div className="corporate-card" style={{ overflow: 'hidden' }}>
+              <table className="corporate-table">
                 <thead>
-                  <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-card)' }}>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Tài khoản / Họ tên</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Liên hệ</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Vai trò được cấp</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'center' }}>Trạng thái</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'right' }}>Thao tác</th>
+                  <tr>
+                    <th>Tài khoản / Họ tên</th>
+                    <th>Email / SĐT</th>
+                    <th>Vai trò được phân quyền</th>
+                    <th style={{ textAlign: 'center' }}>Trạng thái</th>
+                    <th style={{ textAlign: 'right' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <td colSpan={5} style={{ padding: '36px', textAlign: 'center', color: '#8c8c8c' }}>
                         {isDataLoading ? 'Đang tải dữ liệu...' : 'Không tìm thấy người dùng nào.'}
                       </td>
                     </tr>
                   ) : (
                     filteredUsers.map((u) => (
-                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', transition: 'background 0.2s' }}>
-                        <td style={{ padding: '16px 20px' }}>
-                          <div style={{ fontWeight: 600, color: '#ffffff' }}>{u.fullName}</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>@{u.userName}</div>
+                      <tr key={u.id}>
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#111827' }}>{decodeVietnamese(u.fullName)}</div>
+                          <div style={{ color: '#8c8c8c', fontSize: '12px' }}>@{u.userName}</div>
                         </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          <div style={{ color: 'var(--text-primary)' }}>{u.email || '-'}</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{u.phoneNumber || ''}</div>
+                        <td>
+                          <div style={{ color: '#374151' }}>{u.email || '-'}</div>
+                          <div style={{ color: '#8c8c8c', fontSize: '12px' }}>{u.phoneNumber || ''}</div>
                         </td>
-                        <td style={{ padding: '16px 20px' }}>
+                        <td>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {u.roles && u.roles.length > 0 ? (
                               u.roles.map((r) => (
                                 <span key={r} style={{
                                   fontSize: '11px',
-                                  fontWeight: 600,
-                                  padding: '3px 8px',
-                                  borderRadius: '6px',
-                                  background: r.includes('ADMIN') ? 'rgba(239, 68, 68, 0.2)' : r.includes('TAISAN') ? 'rgba(245, 158, 11, 0.2)' : r.includes('KPI') ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                                  color: r.includes('ADMIN') ? '#fca5a5' : r.includes('TAISAN') ? '#fcd34d' : r.includes('KPI') ? '#a5b4fc' : '#6ee7b7',
-                                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                                  fontWeight: 500,
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  backgroundColor: r.includes('ADMIN') ? '#fff1f0' : r.includes('TAISAN') ? '#fffbe6' : r.includes('KPI') ? '#f0f5ff' : '#f6ffed',
+                                  color: r.includes('ADMIN') ? '#cf1322' : r.includes('TAISAN') ? '#d48806' : r.includes('KPI') ? '#2f54eb' : '#389e0d',
+                                  border: `1px solid ${r.includes('ADMIN') ? '#ffa39e' : r.includes('TAISAN') ? '#ffe58f' : r.includes('KPI') ? '#adc6ff' : '#b7eb8f'}`
                                 }}>
                                   {r}
                                 </span>
                               ))
                             ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Chưa gán vai trò</span>
+                              <span style={{ color: '#8c8c8c', fontSize: '12px' }}>Chưa có vai trò</span>
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                        <td style={{ textAlign: 'center' }}>
                           {u.isActive ? (
-                            <span style={{ fontSize: '12px', color: '#34d399', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '12px', color: '#52c41a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <UserCheck size={14} /> Hoạt động
                             </span>
                           ) : (
-                            <span style={{ fontSize: '12px', color: '#f87171', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '12px', color: '#ff4d4f', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <UserX size={14} /> Bị khóa
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                             <button
                               onClick={() => handleOpenAssignRoles(u)}
                               className="btn-secondary"
-                              title="Phân vai trò cho người dùng"
-                              style={{ padding: '6px 12px', fontSize: '12.5px', color: 'var(--accent-cyan)' }}
+                              title="Phân quyền vai trò"
+                              style={{ padding: '4px 10px', fontSize: '12px', color: '#005baa', borderColor: '#91caff' }}
                             >
-                              <Shield size={14} />
+                              <Shield size={13} />
                               <span>Phân Vai Trò</span>
                             </button>
 
@@ -928,18 +1059,18 @@ export default function App() {
                               }}
                               className="btn-secondary"
                               title="Đặt lại mật khẩu"
-                              style={{ padding: '6px 10px' }}
+                              style={{ padding: '4px 8px' }}
                             >
-                              <Key size={14} />
+                              <Key size={13} />
                             </button>
 
                             <button
                               onClick={() => handleToggleUserActive(u)}
                               className="btn-secondary"
                               title={u.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
-                              style={{ padding: '6px 10px', color: u.isActive ? '#f87171' : '#34d399' }}
+                              style={{ padding: '4px 8px', color: u.isActive ? '#ff4d4f' : '#52c41a' }}
                             >
-                              {u.isActive ? <Lock size={14} /> : <Unlock size={14} />}
+                              {u.isActive ? <Lock size={13} /> : <Unlock size={13} />}
                             </button>
                           </div>
                         </td>
@@ -957,35 +1088,35 @@ export default function App() {
         {/* ==================================================== */}
         {activeTab === 'roles' && (
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px', color: '#ffffff' }}>
-                  Quản Trị Danh Mục Vai Trò (Roles)
+                <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', marginBottom: '4px' }}>
+                  Danh Mục Vai Trò Hệ Thống (Roles)
                 </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                  Định nghĩa các vai trò chức năng để phân bổ cho toàn hệ thống Microservices.
+                <p style={{ color: '#6b7280', fontSize: '13.5px' }}>
+                  Định nghĩa các vai trò để phân bổ chức năng cho các phân hệ Tài sản, KPI, Phòng trọ.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
                 <button onClick={fetchRoles} className="btn-secondary" title="Làm mới">
-                  <RefreshCw size={16} />
+                  <RefreshCw size={14} />
                   <span>Tải lại</span>
                 </button>
                 <button onClick={() => setIsCreateRoleOpen(true)} className="btn-primary">
-                  <Plus size={16} />
-                  <span>Thêm Vai Trò Mới</span>
+                  <Plus size={15} />
+                  <span>Thêm Vai Trò</span>
                 </button>
               </div>
             </div>
 
-            {/* Search Bar */}
-            <div style={{ marginBottom: '20px', position: 'relative', maxWidth: '400px' }}>
-              <Search size={18} style={{ position: 'absolute', left: '14px', top: '12px', color: 'var(--text-muted)' }} />
+            {/* Search Bar for Roles */}
+            <div style={{ marginBottom: '16px', position: 'relative', maxWidth: '360px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: '#9ca3af' }} />
               <input
                 type="text"
                 className="input-field"
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '36px' }}
                 placeholder="Tìm theo tên vai trò, mã vai trò..."
                 value={roleSearch}
                 onChange={(e) => setRoleSearch(e.target.value)}
@@ -993,49 +1124,60 @@ export default function App() {
             </div>
 
             {/* Roles Table */}
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+            <div className="corporate-card" style={{ overflow: 'hidden' }}>
+              <table className="corporate-table">
                 <thead>
-                  <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--border-card)' }}>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Mã vai trò (Code)</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Tên hiển thị</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600 }}>Phân loại</th>
-                    <th style={{ padding: '16px 20px', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'right' }}>Thao tác</th>
+                  <tr>
+                    <th>Mã vai trò (Code)</th>
+                    <th>Tên vai trò hiển thị</th>
+                    <th>Phân loại phân hệ</th>
+                    <th style={{ textAlign: 'right' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRoles.map((r) => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                      <td style={{ padding: '16px 20px' }}>
+                    <tr key={r.id}>
+                      <td>
                         <span style={{
-                          fontWeight: 700,
-                          fontSize: '12.5px',
-                          color: 'var(--accent-cyan)',
-                          background: 'rgba(6, 182, 212, 0.1)',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(6, 182, 212, 0.2)'
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          color: '#005baa',
+                          backgroundColor: '#e6f4ff',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid #91caff'
                         }}>
                           {r.code}
                         </span>
                       </td>
-                      <td style={{ padding: '16px 20px', fontWeight: 600, color: '#ffffff' }}>
-                        {r.name}
+                      <td style={{ fontWeight: 600, color: '#111827' }}>
+                        {decodeVietnamese(r.name)}
                       </td>
-                      <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>
+                      <td style={{ color: '#6b7280' }}>
                         {r.type || 'GENERAL'}
                       </td>
-                      <td style={{ padding: '16px 20px', textAlign: 'right' }}>
-                        {r.code !== 'ADMIN' && (
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                           <button
-                            onClick={() => handleDeleteRole(r)}
+                            onClick={() => handleOpenEditRole(r)}
                             className="btn-secondary"
-                            title="Xóa vai trò"
-                            style={{ padding: '6px 10px', color: '#f87171' }}
+                            title="Chỉnh sửa tên vai trò"
+                            style={{ padding: '4px 8px', color: '#005baa' }}
                           >
-                            <Trash2 size={14} />
+                            <Edit size={13} />
                           </button>
-                        )}
+
+                          {r.code !== 'ADMIN' && (
+                            <button
+                              onClick={() => handleDeleteRole(r)}
+                              className="btn-secondary"
+                              title="Xóa vai trò"
+                              style={{ padding: '4px 8px', color: '#ff4d4f' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1053,25 +1195,24 @@ export default function App() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Thêm Tài Khoản Người Dùng</h3>
-              <button onClick={() => setIsCreateUserOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                <X size={20} />
+          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Thêm Tài Khoản Người Dùng</h3>
+              <button onClick={() => setIsCreateUserOpen(false)} style={{ background: 'transparent', border: 'none', color: '#8c8c8c', cursor: 'pointer' }}>
+                <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleCreateUser}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                   Tên đăng nhập *
                 </label>
                 <input
@@ -1084,8 +1225,8 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                   Họ và tên *
                 </label>
                 <input
@@ -1098,9 +1239,9 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                     Email
                   </label>
                   <input
@@ -1112,7 +1253,7 @@ export default function App() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                     Mật khẩu ban đầu
                   </label>
                   <input
@@ -1126,15 +1267,15 @@ export default function App() {
               </div>
 
               {/* Roles Checkbox Selection */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '8px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: '#374151' }}>
                   Gán vai trò ban đầu:
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-card)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#f9fafb', padding: '10px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
                   {roleList.map((r) => {
                     const isChecked = newSelectedRoles.includes(r.code);
                     return (
-                      <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: isChecked ? '#ffffff' : 'var(--text-secondary)', cursor: 'pointer' }}>
+                      <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#374151', cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -1146,14 +1287,14 @@ export default function App() {
                             }
                           }}
                         />
-                        <span>{r.name} ({r.code})</span>
+                        <span>{decodeVietnamese(r.name)}</span>
                       </label>
                     );
                   })}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
                 <button type="button" onClick={() => setIsCreateUserOpen(false)} className="btn-secondary">
                   Hủy
                 </button>
@@ -1173,27 +1314,26 @@ export default function App() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Phân Quyền Vai Trò</h3>
-              <button onClick={() => setIsAssignRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                <X size={20} />
+          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Phân Quyền Vai Trò</h3>
+              <button onClick={() => setIsAssignRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: '#8c8c8c', cursor: 'pointer' }}>
+                <X size={18} />
               </button>
             </div>
 
-            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Gán các vai trò cho tài khoản: <strong style={{ color: '#ffffff' }}>{selectedUser.fullName}</strong> (@{selectedUser.userName})
+            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+              Phân vai trò cho tài khoản: <strong style={{ color: '#111827' }}>{selectedUser.fullName}</strong> (@{selectedUser.userName})
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
               {roleList.map((r) => {
                 const isChecked = assignedRoles.includes(r.code);
                 return (
@@ -1210,32 +1350,32 @@ export default function App() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      background: isChecked ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                      border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-card)',
-                      borderRadius: '10px',
+                      padding: '10px 14px',
+                      backgroundColor: isChecked ? '#e6f4ff' : '#ffffff',
+                      border: `1px solid ${isChecked ? '#91caff' : '#e5e7eb'}`,
+                      borderRadius: '6px',
                       cursor: 'pointer',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.15s'
                     }}
                   >
                     <div>
-                      <div style={{ fontWeight: 600, color: isChecked ? '#ffffff' : 'var(--text-primary)', fontSize: '14px' }}>
-                        {r.name}
+                      <div style={{ fontWeight: 600, color: isChecked ? '#005baa' : '#374151', fontSize: '13.5px' }}>
+                        {decodeVietnamese(r.name)}
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Mã vai trò: {r.code}</div>
+                      <div style={{ fontSize: '11.5px', color: '#8c8c8c' }}>Mã: {r.code} ({r.type || 'GENERAL'})</div>
                     </div>
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => {}}
-                      style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+                      style={{ width: '16px', height: '16px', accentColor: '#005baa' }}
                     />
                   </div>
                 );
               })}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
               <button onClick={() => setIsAssignRoleOpen(false)} className="btn-secondary">
                 Hủy
               </button>
@@ -1254,29 +1394,28 @@ export default function App() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Đặt Lại Mật Khẩu</h3>
-              <button onClick={() => setIsResetPassOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                <X size={20} />
+          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '380px', padding: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Đặt Lại Mật Khẩu</h3>
+              <button onClick={() => setIsResetPassOpen(false)} style={{ background: 'transparent', border: 'none', color: '#8c8c8c', cursor: 'pointer' }}>
+                <X size={18} />
               </button>
             </div>
 
-            <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', marginBottom: '18px' }}>
-              Đặt lại mật khẩu cho tài khoản: <strong style={{ color: '#ffffff' }}>@{selectedUser.userName}</strong>
+            <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '16px' }}>
+              Đặt lại mật khẩu cho tài khoản: <strong style={{ color: '#111827' }}>@{selectedUser.userName}</strong>
             </p>
 
             <form onSubmit={handleResetPassword}>
-              <div style={{ marginBottom: '22px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                   Mật khẩu mới *
                 </label>
                 <input
@@ -1288,7 +1427,7 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
                 <button type="button" onClick={() => setIsResetPassOpen(false)} className="btn-secondary">
                   Hủy
                 </button>
@@ -1308,25 +1447,24 @@ export default function App() {
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.7)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.45)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
           padding: '20px'
         }}>
-          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '460px', padding: '30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>Thêm Vai Trò Mới</h3>
-              <button onClick={() => setIsCreateRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                <X size={20} />
+          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Thêm Vai Trò Mới</h3>
+              <button onClick={() => setIsCreateRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: '#8c8c8c', cursor: 'pointer' }}>
+                <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleCreateRole}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                   Mã vai trò (Code) *
                 </label>
                 <input
@@ -1339,8 +1477,8 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                   Tên vai trò hiển thị *
                 </label>
                 <input
@@ -1353,8 +1491,8 @@ export default function App() {
                 />
               </div>
 
-              <div style={{ marginBottom: '22px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-secondary)' }}>
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
                   Phân loại phân hệ
                 </label>
                 <select
@@ -1369,12 +1507,91 @@ export default function App() {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
                 <button type="button" onClick={() => setIsCreateRoleOpen(false)} className="btn-secondary">
                   Hủy
                 </button>
                 <button type="submit" className="btn-primary">
                   Tạo Vai Trò
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================== */}
+      {/* MODAL 5: CHỈNH SỬA VAI TRÒ                          */}
+      {/* ==================================================== */}
+      {isEditRoleOpen && selectedRole && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Chỉnh Sửa Tên Vai Trò</h3>
+              <button onClick={() => setIsEditRoleOpen(false)} style={{ background: 'transparent', border: 'none', color: '#8c8c8c', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditRole}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
+                  Mã vai trò (Code)
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  value={selectedRole.code}
+                  disabled
+                  style={{ backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
+                  Tên vai trò hiển thị tiếng Việt có dấu *
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="ví dụ: Cán bộ quản lý"
+                  value={editRoleName}
+                  onChange={(e) => setEditRoleName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px', color: '#374151' }}>
+                  Phân loại phân hệ
+                </label>
+                <select
+                  className="input-field"
+                  value={editRoleType}
+                  onChange={(e) => setEditRoleType(e.target.value)}
+                >
+                  <option value="GENERAL">Dùng chung (General)</option>
+                  <option value="ASSET">Cơ sở vật chất & Tài sản</option>
+                  <option value="KPI">Đánh giá thi đua KPI</option>
+                  <option value="ROOM">Phòng trọ & Ví tiền</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
+                <button type="button" onClick={() => setIsEditRoleOpen(false)} className="btn-secondary">
+                  Hủy
+                </button>
+                <button type="submit" className="btn-primary">
+                  Lưu Tên Vai Trò
                 </button>
               </div>
             </form>

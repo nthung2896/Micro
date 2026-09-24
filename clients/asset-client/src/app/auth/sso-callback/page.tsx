@@ -70,16 +70,32 @@ const SsoCallback: React.FC = () => {
           // ---- B2. Gọi GetInfo lấy hồ sơ user + menu quyền ----
           const response = await authService.getInfo();
 
-          // ---- B3. Nạp vào Redux = "ĐÃ ĐĂNG NHẬP" ----
-          // auth.User != null  => toàn app coi như đã đăng nhập.
-          // menu.menuData      => render sidebar theo quyền.
-          if (response && (response as any).data) {
+          if (response && ((response as any).data || (response as any).userName || (response as any).name)) {
+            const resData = (response as any).data || response;
+            const userRoles: string[] = [
+              ...(resData.listRole || []),
+              ...(resData.roles || []),
+              ...(resData.vaiTro || []),
+              resData.type || ''
+            ].filter(Boolean);
+            
+            const hasAssetRole = userRoles.some(r => {
+              const u = String(r).toUpperCase();
+              return u === "ROLE_TAISAN" || u === "ADMIN" || u === "MANAGER";
+            });
+            
+            if (!hasAssetRole) {
+              localStorage.removeItem("AccessToken");
+              localStorage.removeItem("IdTokenHint");
+              setError(
+                `Tài khoản @${resData.userName || ''} (${resData.name || 'Người dùng'}) chưa được phân quyền truy cập Phân hệ Quản lý Tài sản (ROLE_TAISAN). Vui lòng quay lại Cổng SSO Portal để cấp quyền!`
+              );
+              return;
+            }
+
             dispatch(setUserInfo(response)); // set state.auth.User
             dispatch(setMenuData(response)); // set state.menu.menuData
           } else {
-            // Có token nhưng GetInfo KHÔNG trả user (vd BE trả 400 "Không tìm thấy thông tin người dùng"
-            // khi tài khoản chưa thực sự được lưu/đồng bộ). Không cho vào dashboard với state rỗng:
-            // dọn token và báo lỗi rõ ràng thay vì "đăng nhập treo".
             localStorage.removeItem("AccessToken");
             localStorage.removeItem("IdTokenHint");
             setError(
