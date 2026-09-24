@@ -28,6 +28,10 @@ builder.Services.AddCors(options =>
 // Thêm cấu hình JWT
 builder.Services.AddSharedJwtAuth(builder.Configuration);
 
+// Message Queue Event-Driven Services
+builder.Services.AddSingleton<IdentityService.Services.IEventLogService, IdentityService.Services.EventLogService>();
+builder.Services.AddSingleton<IdentityService.Services.IRabbitMQPublisher, IdentityService.Services.RabbitMQPublisher>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

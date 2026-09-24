@@ -20,11 +20,15 @@ namespace IdentityService.Controllers
     {
         private readonly IdentityContext _dbContext;
         private readonly PasswordHasher<AppUser> _passwordHasher;
+        private readonly IdentityService.Services.IRabbitMQPublisher _rabbitMQPublisher;
 
-        public UsersController(IdentityContext dbContext)
+        public UsersController(
+            IdentityContext dbContext,
+            IdentityService.Services.IRabbitMQPublisher rabbitMQPublisher)
         {
             _dbContext = dbContext;
             _passwordHasher = new PasswordHasher<AppUser>();
+            _rabbitMQPublisher = rabbitMQPublisher;
         }
 
         private static string FixVietnameseEncoding(string? text)
@@ -110,7 +114,7 @@ namespace IdentityService.Controllers
         }
 
         /// <summary>
-        /// Tạo mới tài khoản người dùng
+        /// Tạo mới tài khoản người dùng và bắn sự kiện UserCreatedEvent vào Message Queue
         /// </summary>
         [HttpPost]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
@@ -145,12 +149,15 @@ namespace IdentityService.Controllers
 
             _dbContext.Users.Add(user);
 
+            var assignedRoleCodes = new List<string>();
+
             // Gán vai trò ban đầu nếu có
             if (request.RoleCodes != null && request.RoleCodes.Any())
             {
                 var roles = await _dbContext.Role.Where(r => request.RoleCodes.Contains(r.Code) && !r.IsDeleted).ToListAsync();
                 foreach (var r in roles)
                 {
+                    assignedRoleCodes.Add(r.Code);
                     _dbContext.UserRole.Add(new UserRole
                     {
                         Id = Guid.NewGuid(),
@@ -164,7 +171,26 @@ namespace IdentityService.Controllers
 
             await _dbContext.SaveChangesAsync();
 
-            return Ok(ApiResponse<object>.Ok(new { id = user.Id, userName = user.UserName }, "Tạo người dùng thành công"));
+            // =========================================================================
+            // EVENT-DRIVEN: BẮN SỰ KIỆN UserCreatedEvent VÀO RABBITMQ MESSAGE QUEUE
+            // =========================================================================
+            try
+            {
+                _rabbitMQPublisher.PublishUserCreated(new SharedKernel.Events.UserCreatedEvent
+                {
+                    UserId = user.Id,
+                    UserName = user.UserName,
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    Roles = assignedRoleCodes.Count > 0 ? assignedRoleCodes : (request.RoleCodes ?? new List<string>()),
+                    CreatedAt = user.CreatedDate,
+                    SourceService = "identity-service"
+                });
+            }
+            catch { }
+
+            return Ok(ApiResponse<object>.Ok(new { id = user.Id, userName = user.UserName, eventPublished = true }, "Tạo người dùng và đồng bộ qua Message Queue thành công"));
         }
 
         /// <summary>
@@ -189,6 +215,22 @@ namespace IdentityService.Controllers
             }
 
             await _dbContext.SaveChangesAsync();
+
+            // EVENT-DRIVEN: Bắn sự kiện UserUpdatedEvent
+            try
+            {
+                _rabbitMQPublisher.PublishUserUpdated(new SharedKernel.Events.UserUpdatedEvent
+                {
+                    UserId = user.Id,
+                    UserName = user.UserName,
+                    FullName = user.FullName ?? user.UserName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    IsActive = user.IsActive,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            catch { }
 
             return Ok(ApiResponse<object>.Ok(new { id = user.Id, userName = user.UserName }, "Cập nhật người dùng thành công"));
         }
@@ -228,7 +270,20 @@ namespace IdentityService.Controllers
 
             await _dbContext.SaveChangesAsync();
 
-            return Ok(ApiResponse<object>.Ok(new { userId = id, roles = request.RoleCodes }, "Phân quyền vai trò thành công"));
+            // EVENT-DRIVEN: Bắn sự kiện UserRolesChangedEvent
+            try
+            {
+                _rabbitMQPublisher.PublishUserRolesChanged(new SharedKernel.Events.UserRolesChangedEvent
+                {
+                    UserId = user.Id,
+                    UserName = user.UserName,
+                    Roles = request.RoleCodes ?? new List<string>(),
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+            catch { }
+
+            return Ok(ApiResponse<object>.Ok(new { userId = id, roles = request.RoleCodes }, "Phân quyền vai trò và đồng bộ Message Queue thành công"));
         }
 
         /// <summary>

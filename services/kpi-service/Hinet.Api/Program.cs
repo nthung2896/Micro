@@ -33,6 +33,7 @@ internal class Program
 
         builder.Services.AddMemoryCache();
         builder.Services.AddSingleton<Hinet.Service.RabbitMQ.IRabbitMQService, Hinet.Service.RabbitMQ.RabbitMQService>();
+        builder.Services.AddHostedService<Hinet.Service.RabbitMQ.UserSyncConsumerService>();
         builder.Services.UseConfigurationServices();
         builder.Services.Configure<LibreOfficePreviewOptions>(builder.Configuration.GetSection("LibreOffice"));
         builder.Services.AddSingleton(sp =>

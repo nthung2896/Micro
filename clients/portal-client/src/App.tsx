@@ -23,7 +23,15 @@ import {
   UserX,
   X,
   Layers,
-  Building2
+  Building2,
+  Zap,
+  Radio,
+  Activity,
+  Database,
+  Send,
+  Server,
+  Cpu,
+  CheckCheck
 } from 'lucide-react';
 
 interface AppItem {
@@ -58,6 +66,17 @@ interface RoleItem {
   name: string;
   type?: string;
   isActive: boolean;
+}
+
+interface EventItem {
+  id: string;
+  eventType: string;
+  routingKey: string;
+  payload: string;
+  status: string;
+  timestamp: string;
+  source: string;
+  consumers: string[];
 }
 
 // Hàm tự động chuẩn hóa & giải mã tiếng Việt bị lỗi font (Mojibake UTF-8)
@@ -162,12 +181,17 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Active Tab: 'launcher' | 'users' | 'roles'
-  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles'>('launcher');
+  // Active Tab: 'launcher' | 'users' | 'roles' | 'events'
+  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles' | 'events'>('launcher');
 
   // Data States
   const [userList, setUserList] = useState<UserItem[]>([]);
   const [roleList, setRoleList] = useState<RoleItem[]>([]);
+  const [eventList, setEventList] = useState<EventItem[]>([]);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isPublishingTest, setIsPublishingTest] = useState(false);
+
   const [userSearch, setUserSearch] = useState('');
   const [roleSearch, setRoleSearch] = useState('');
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -247,10 +271,60 @@ export default function App() {
     } catch (_) {}
   };
 
+  const fetchEvents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/events/history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          setEventList(json.data);
+        }
+      }
+    } catch (_) {}
+  };
+
+  const handlePublishTestEvent = async () => {
+    setIsPublishingTest(true);
+    try {
+      const testUser = `demo_user_${Math.floor(1000 + Math.random() * 9000)}`;
+      const res = await fetch(`${API_BASE}/events/publish-test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userName: testUser,
+          fullName: `Cán bộ Thử Nghiệm (${testUser})`,
+          roles: ['USER', 'ROLE_TAISAN', 'ROLE_KPI']
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(`🚀 Bắn UserCreatedEvent cho @${testUser} vào RabbitMQ thành công!`);
+        fetchEvents();
+      } else {
+        notify(json.message || 'Lỗi bắn sự kiện', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    } finally {
+      setIsPublishingTest(false);
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchUsers();
       fetchRoles();
+      fetchEvents();
+
+      const interval = setInterval(() => {
+        fetchEvents();
+      }, 5000);
+      return () => clearInterval(interval);
     }
   }, [token]);
 
@@ -787,6 +861,31 @@ export default function App() {
                 {roleList.length}
               </span>
             </button>
+
+            <button
+              onClick={() => setActiveTab('events')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: activeTab === 'events' ? '#ffffff' : 'transparent',
+                color: activeTab === 'events' ? '#005baa' : '#4b5563',
+                fontWeight: activeTab === 'events' ? 600 : 500,
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: activeTab === 'events' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                transition: 'all 0.15s'
+              }}
+            >
+              <Zap size={15} style={{ color: activeTab === 'events' ? '#d97706' : '#8c8c8c' }} />
+              <span>Event-Driven (RabbitMQ)</span>
+              <span style={{ fontSize: '11px', background: activeTab === 'events' ? '#fef3c7' : '#e5e7eb', color: activeTab === 'events' ? '#b45309' : '#6b7280', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                {eventList.length}
+              </span>
+            </button>
           </div>
 
           {/* User Profile & Logout */}
@@ -1186,7 +1285,292 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* ==================================================== */}
+        {/* TAB 4: KIẾN TRÚC EVENT-DRIVEN & RABBITMQ DEMO        */}
+        {/* ==================================================== */}
+        {activeTab === 'events' && (
+          <div>
+            {/* Header section */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ backgroundColor: '#fffbe6', border: '1px solid #ffe58f', color: '#d48806', padding: '2px 8px', borderRadius: '4px', fontSize: '11.5px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Zap size={12} />
+                    MÔ HÌNH CHUẨN KHUYÊN DÙNG
+                  </span>
+                  <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', margin: 0 }}>
+                    Event-Driven Architecture qua Message Queue (RabbitMQ)
+                  </h2>
+                </div>
+                <p style={{ color: '#6b7280', fontSize: '13.5px', margin: 0, maxWidth: '850px' }}>
+                  Khi Admin tạo hoặc cập nhật tài khoản trên Cổng Portal: Identity Service lưu vào <code>Identity_DB</code>, sau đó phát sự kiện <code>UserCreatedEvent</code> vào RabbitMQ Exchange (<code>user.events.exchange</code>). Các phân hệ <strong>Asset Service (5005)</strong> và <strong>KPI Service (5003)</strong> tự động lắng nghe và đồng bộ dữ liệu vào Database riêng (<code>Base_TaiSan</code> & <code>Base_DB</code>).
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={fetchEvents} className="btn-secondary" title="Làm mới sự kiện">
+                  <RefreshCw size={14} />
+                  <span>Tải lại</span>
+                </button>
+                <button
+                  onClick={handlePublishTestEvent}
+                  disabled={isPublishingTest}
+                  className="btn-primary"
+                  style={{ backgroundColor: '#d97706', borderColor: '#d97706' }}
+                >
+                  <Send size={14} />
+                  <span>{isPublishingTest ? 'Đang gửi...' : '🚀 Bắn Sự Kiện Test (UserCreatedEvent)'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Visual Architecture Flow Diagram Card */}
+            <div className="corporate-card" style={{ padding: '24px', marginBottom: '24px', background: '#fafafa', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Activity size={15} style={{ color: '#005baa' }} />
+                <span>Sơ Đồ Luồng Dữ Liệu Bất Đồng Bộ (Event-Driven Stream)</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', alignItems: 'stretch' }}>
+                {/* Step 1 */}
+                <div style={{ background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d9d9d9', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, background: '#e6f4ff', color: '#005baa', padding: '1px 6px', borderRadius: '4px' }}>BƯỚC 1</span>
+                      <Server size={18} style={{ color: '#005baa' }} />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', marginBottom: '4px' }}>Client / Portal</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.4 }}>
+                      Admin tạo người dùng gửi request <code>POST /api/auth/users</code> qua API Gateway (5000).
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px dashed #f0f0f0', fontSize: '11px', color: '#52c41a', fontWeight: 600 }}>
+                    ✓ REST API Gateway:5000
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div style={{ background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d9d9d9', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, background: '#f6ffed', color: '#52c41a', padding: '1px 6px', borderRadius: '4px' }}>BƯỚC 2</span>
+                      <Database size={18} style={{ color: '#52c41a' }} />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', marginBottom: '4px' }}>Identity Service (5001)</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.4 }}>
+                      Mã hóa mật khẩu và lưu vào <code>Identity_DB</code>, gán các vai trò ban đầu.
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px dashed #f0f0f0', fontSize: '11px', color: '#005baa', fontWeight: 600 }}>
+                    ✓ Lưu SQL Server: Identity_DB
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div style={{ background: '#fffbe6', padding: '16px', borderRadius: '8px', border: '1px solid #ffe58f', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, background: '#ffd591', color: '#d46b08', padding: '1px 6px', borderRadius: '4px' }}>BƯỚC 3: MESSAGE QUEUE</span>
+                      <Zap size={18} style={{ color: '#fa8c16' }} />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#873800', marginBottom: '4px' }}>RabbitMQ Topic Exchange</div>
+                    <div style={{ fontSize: '12px', color: '#ad4e00', lineHeight: 1.4 }}>
+                      Publish <code>UserCreatedEvent</code> vào exchange <code>user.events.exchange</code> với routing key <code>user.created</code>.
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px dashed #ffd591', fontSize: '11px', color: '#d46b08', fontWeight: 600 }}>
+                    ⚡ AMQP 0-9-1 Topic Exchange
+                  </div>
+                </div>
+
+                {/* Step 4 */}
+                <div style={{ background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #d9d9d9', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, background: '#f9f0ff', color: '#722ed1', padding: '1px 6px', borderRadius: '4px' }}>BƯỚC 4: CONSUMERS</span>
+                      <Cpu size={18} style={{ color: '#722ed1' }} />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '14px', color: '#111827', marginBottom: '4px' }}>Subscribers Độc Lập</div>
+                    <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.4 }}>
+                      <strong>Asset Service (5005)</strong> & <strong>KPI Service (5003)</strong> nhận message và tự động ghi vào <code>Base_TaiSan</code> & <code>Base_DB</code>.
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px dashed #f0f0f0', fontSize: '11px', color: '#722ed1', fontWeight: 600 }}>
+                    ✓ Tự Động Đồng Bộ Tức Thì
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Event History Stream Table */}
+            <div className="corporate-card" style={{ overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Radio size={16} style={{ color: '#52c41a' }} />
+                  <span>Luồng Sự Kiện Thời Gian Thực (Live Event History)</span>
+                </div>
+                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                  Tổng cộng: <strong>{eventList.length}</strong> sự kiện đã phát
+                </span>
+              </div>
+
+              <table className="corporate-table">
+                <thead>
+                  <tr>
+                    <th>Thời Gian</th>
+                    <th>Loại Sự Kiện (Event Type)</th>
+                    <th>Routing Key</th>
+                    <th>Nguồn Phát</th>
+                    <th>Các Dịch Vụ Đã Nhận (Consumers)</th>
+                    <th style={{ textAlign: 'center' }}>Trạng Thái</th>
+                    <th style={{ textAlign: 'right' }}>Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#8c8c8c' }}>
+                        Chưa có sự kiện nào. Hãy click "Bắn Sự Kiện Test" hoặc thêm người dùng mới để xem luồng Event-Driven!
+                      </td>
+                    </tr>
+                  ) : (
+                    eventList.map((evt) => (
+                      <tr key={evt.id}>
+                        <td style={{ fontSize: '12px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                          {new Date(evt.timestamp).toLocaleTimeString('vi-VN')} {new Date(evt.timestamp).toLocaleDateString('vi-VN')}
+                        </td>
+                        <td>
+                          <span style={{
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            color: evt.eventType.includes('Created') ? '#005baa' : evt.eventType.includes('Roles') ? '#722ed1' : '#d46b08',
+                            backgroundColor: evt.eventType.includes('Created') ? '#e6f4ff' : evt.eventType.includes('Roles') ? '#f9f0ff' : '#fff7e6',
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            border: `1px solid ${evt.eventType.includes('Created') ? '#91caff' : evt.eventType.includes('Roles') ? '#d3adf7' : '#ffd591'}`
+                          }}>
+                            ⚡ {evt.eventType}
+                          </span>
+                        </td>
+                        <td>
+                          <code style={{ fontSize: '12px', background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', color: '#374151' }}>
+                            {evt.routingKey}
+                          </code>
+                        </td>
+                        <td style={{ fontSize: '12.5px', color: '#4b5563', fontWeight: 500 }}>
+                          {evt.source}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {(evt.consumers || ['asset-service', 'kpi-service']).map((c, idx) => (
+                              <span key={idx} style={{
+                                fontSize: '11px',
+                                background: '#f6ffed',
+                                color: '#389e0d',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid #b7eb8f',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}>
+                                <CheckCheck size={11} />
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: '#f6ffed',
+                            color: '#52c41a',
+                            border: '1px solid #b7eb8f'
+                          }}>
+                            ✓ {evt.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            onClick={() => {
+                              setSelectedEvent(evt);
+                              setIsEventModalOpen(true);
+                            }}
+                            className="btn-secondary"
+                            style={{ padding: '4px 10px', fontSize: '12px', color: '#005baa' }}
+                          >
+                            Xem Payload JSON
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ==================================================== */}
+      {/* MODAL 6: XEM CHI TIẾT PAYLOAD SỰ KIỆN JSON           */}
+      {/* ==================================================== */}
+      {isEventModalOpen && selectedEvent && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+          padding: '20px'
+        }}>
+          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '600px', padding: '24px', backgroundColor: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: 0 }}>
+                  Chi Tiết Sự Kiện: {selectedEvent.eventType}
+                </h3>
+                <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '2px' }}>
+                  Routing Key: <code>{selectedEvent.routingKey}</code> | Source: {selectedEvent.source}
+                </div>
+              </div>
+              <button onClick={() => setIsEventModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#8c8c8c', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#374151', marginBottom: '6px' }}>
+                Message Body (AMQP JSON Payload):
+              </label>
+              <pre style={{
+                background: '#1e293b',
+                color: '#f8fafc',
+                padding: '14px',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                lineHeight: 1.5,
+                overflowX: 'auto',
+                maxHeight: '320px'
+              }}>
+                {selectedEvent.payload}
+              </pre>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #f0f0f0', paddingTop: '12px' }}>
+              <button onClick={() => setIsEventModalOpen(false)} className="btn-primary">
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ==================================================== */}
       {/* MODAL 1: THÊM NGƯỜI DÙNG MỚI                         */}
