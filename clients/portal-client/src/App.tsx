@@ -172,12 +172,22 @@ const APPS: AppItem[] = [
   }
 ];
 
-const API_BASE = 'http://localhost:5000/api/auth';
+const API_BASE = 'http://localhost:5001/api/auth';
 
 export default function App() {
-  // Auth State
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('sso_portal_token'));
+  // Auth State - Tự động xóa token giả/cũ (sso_jwt_...) để đảm bảo luôn dùng JWT chuẩn HMAC-SHA256
+  const [token, setToken] = useState<string | null>(() => {
+    const saved = localStorage.getItem('sso_portal_token');
+    if (saved && (saved.startsWith('sso_jwt_') || saved.length < 50)) {
+      localStorage.removeItem('sso_portal_token');
+      localStorage.removeItem('sso_portal_user');
+      return null;
+    }
+    return saved;
+  });
   const [user, setUser] = useState<{ username: string; fullName: string; role: string; roles: string[] } | null>(() => {
+    const savedToken = localStorage.getItem('sso_portal_token');
+    if (!savedToken) return null;
     const saved = localStorage.getItem('sso_portal_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -371,28 +381,31 @@ export default function App() {
 
     try {
       let activeToken = '';
-      let rolesArr: string[] = ['ADMIN', 'ROLE_TAISAN', 'ROLE_KPI'];
+      let rolesArr: string[] = ['ADMIN', 'ROLE_TAISAN', 'ROLE_KPI', 'ROLE_ROOM'];
       let fullName = username === 'admin' ? 'Quản Trị Viên Toàn Hệ Thống' : username;
 
       try {
         const authRes = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userName: username, password: password })
+          body: JSON.stringify({ Username: username, UserName: username, password: password })
         });
 
         if (authRes.ok) {
           const data = await authRes.json();
-          if (data.data?.token || data.token) {
-            activeToken = data.data?.token || data.token;
-            if (data.data?.user?.roles) rolesArr = data.data.user.roles;
-            if (data.data?.user?.fullName) fullName = decodeVietnamese(data.data.user.fullName);
+          if (data.data?.token || data.token || data.data?.accessToken) {
+            activeToken = data.data?.token || data.token || data.data?.accessToken;
+            if (data.data?.roles) rolesArr = data.data.roles;
+            else if (data.data?.user?.roles) rolesArr = data.data.user.roles;
+            if (data.data?.fullName) fullName = decodeVietnamese(data.data.fullName);
+            else if (data.data?.user?.fullName) fullName = decodeVietnamese(data.data.user.fullName);
           }
         }
       } catch (_) {}
 
       if (!activeToken) {
-        activeToken = `sso_jwt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        setErrorMsg('Không thể xác thực với Identity Service. Vui lòng kiểm tra lại dịch vụ Identity Service.');
+        return;
       }
 
       const userData = {

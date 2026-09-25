@@ -47,6 +47,6 @@ namespace Hinet.Service.AppUserService
         /// Đồng bộ role cho tất cả tài khoản dựa trên chức vụ hiện tại trong lý lịch 2C.
         /// </summary>
         Task<SyncRoleResultDto> SyncRolesByChucVuAsync();
-
+        
     }
 }
