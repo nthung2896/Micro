@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Search,
@@ -947,14 +948,14 @@ export const DepartmentsTab: React.FC<DepartmentsTabProps> = ({ token, notify, o
       {/* ========================================================================= */}
       {/* MODAL 1: THÊM MỚI PHÒNG BAN / ĐƠN VỊ (FIX HOÀN TOÀN LỖI TRÀN MÀN HÌNH)      */}
       {/* ========================================================================= */}
-      {isCreateModalOpen && (
+      {isCreateModalOpen && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 1050,
+          zIndex: 9999,
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
           overflowY: 'auto',
           display: 'flex',
@@ -1191,13 +1192,14 @@ export const DepartmentsTab: React.FC<DepartmentsTabProps> = ({ token, notify, o
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* MODAL 2: CHỈNH SỬA PHÒNG BAN                                              */}
       {/* ========================================================================= */}
-      {isEditModalOpen && selectedDept && (
+      {isEditModalOpen && selectedDept && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1435,20 +1437,21 @@ export const DepartmentsTab: React.FC<DepartmentsTabProps> = ({ token, notify, o
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* MODAL 3: XEM CHI TIẾT PHÒNG BAN                                           */}
       {/* ========================================================================= */}
-      {isDetailModalOpen && selectedDept && (
+      {isDetailModalOpen && selectedDept && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 1050,
+          zIndex: 9999,
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
           overflowY: 'auto',
           display: 'flex',
@@ -1537,20 +1540,21 @@ export const DepartmentsTab: React.FC<DepartmentsTabProps> = ({ token, notify, o
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* POPCONFIRM: XÁC NHẬN XÓA PHÒNG BAN                                        */}
       {/* ========================================================================= */}
-      {confirmDeleteDept && (
+      {confirmDeleteDept && createPortal(
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 1060,
+          zIndex: 9999,
           backgroundColor: 'rgba(0, 0, 0, 0.45)',
           overflowY: 'auto',
           display: 'flex',
@@ -1591,7 +1595,8 @@ export const DepartmentsTab: React.FC<DepartmentsTabProps> = ({ token, notify, o
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

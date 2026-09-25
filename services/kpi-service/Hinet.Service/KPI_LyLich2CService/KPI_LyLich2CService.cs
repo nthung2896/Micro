@@ -17,17 +17,22 @@ using Microsoft.AspNetCore.Http;
 using System.IO;
 using System.Globalization;
 using Hinet.Service.Constant;
+using Hinet.Service.Common.IdentityClient;
+using Microsoft.Extensions.Logging;
 
 namespace Hinet.Service.KPI_LyLich2CService
 {
     public class KPI_LyLich2CService : Service<KPI_LyLich2C>, IKPI_LyLich2CService
     {
+        private readonly IKPI_LyLich2CRepository _kPI_LyLich2CRepository;
         private readonly IDM_DuLieuDanhMucRepository _dmDuLieuDanhMucRepository;
         private readonly IDM_NhomDanhMucRepository _dmNhomDanhMucRepository;
         private readonly IDepartmentRepository _departmentRepository;
         private readonly IAppUserRepository _appUserRepository;
         private readonly IRoleRepository _roleRepository;
         private readonly IUserRoleRepository _userRoleRepository;
+        private readonly IIdentityServiceClient _identityServiceClient;
+        private readonly ILogger<KPI_LyLich2CService> _logger;
 
         public KPI_LyLich2CService(
             IKPI_LyLich2CRepository kPI_LyLich2CRepository,
@@ -36,15 +41,20 @@ namespace Hinet.Service.KPI_LyLich2CService
             IDepartmentRepository departmentRepository,
             IAppUserRepository appUserRepository,
             IRoleRepository roleRepository,
-            IUserRoleRepository userRoleRepository
+            IUserRoleRepository userRoleRepository,
+            IIdentityServiceClient identityServiceClient,
+            ILogger<KPI_LyLich2CService> logger
             ) : base(kPI_LyLich2CRepository)
         {
+            _kPI_LyLich2CRepository = kPI_LyLich2CRepository;
             _dmDuLieuDanhMucRepository = dmDuLieuDanhMucRepository;
             _dmNhomDanhMucRepository = dmNhomDanhMucRepository;
             _departmentRepository = departmentRepository;
             _appUserRepository = appUserRepository;
             _roleRepository = roleRepository;
             _userRoleRepository = userRoleRepository;
+            _identityServiceClient = identityServiceClient;
+            _logger = logger;
         }
 
         public async Task<PagedList<KPI_LyLich2CDto>> GetData(KPI_LyLich2CSearch search)
@@ -809,6 +819,195 @@ namespace Hinet.Service.KPI_LyLich2CService
                 return val;
             }
             return null;
+        }
+
+        public async Task<BatchStaffImportResultDto> ImportStaffBatchAsync(List<StaffImportItemDto> staffList, string? defaultPassword = null)
+        {
+            var result = new BatchStaffImportResultDto
+            {
+                TotalItems = staffList?.Count ?? 0
+            };
+
+            if (staffList == null || staffList.Count == 0)
+            {
+                return result;
+            }
+
+            _logger.LogInformation("🚀 [KPI Service] Starting batch staff import for {Count} records...", staffList.Count);
+
+            // BƯỚC 1: Chuẩn bị payload gửi sang Identity Service để tạo User/Account chuẩn SSO
+            var requestDto = new BatchCreateUsersRequestDto
+            {
+                DefaultPassword = !string.IsNullOrWhiteSpace(defaultPassword) ? defaultPassword : "Password@123",
+                Users = staffList.Select(s => new BatchCreateUserItemDto
+                {
+                    UserName = !string.IsNullOrWhiteSpace(s.UserName)
+                        ? s.UserName.Trim()
+                        : (!string.IsNullOrWhiteSpace(s.Email) ? s.Email.Split('@')[0].Trim() : s.MaCanBo?.Trim().ToLower()),
+                    Email = s.Email?.Trim(),
+                    FullName = s.HoTen?.Trim(),
+                    PhoneNumber = s.SoDienThoai?.Trim(),
+                    Password = s.Password,
+                    DepartmentId = s.DonViSuDungId ?? s.PhongBanId,
+                    Roles = s.Roles != null && s.Roles.Count > 0 ? s.Roles : new List<string> { "CaNhan" }
+                }).ToList()
+            };
+
+            // BƯỚC 2: Gọi Identity Service tạo tài khoản trong Identity_DB
+            var identityResponse = await _identityServiceClient.BatchCreateUsersAsync(requestDto);
+
+            var resultMap = new Dictionary<string, BatchCreateUserItemResultDto>(StringComparer.OrdinalIgnoreCase);
+            if (identityResponse?.Data != null)
+            {
+                foreach (var item in identityResponse.Data)
+                {
+                    if (!string.IsNullOrEmpty(item.UserName)) resultMap[item.UserName] = item;
+                    if (!string.IsNullOrEmpty(item.Email)) resultMap[item.Email] = item;
+                }
+            }
+
+            // BƯỚC 3: Lưu / cập nhật dữ liệu hồ sơ nhân sự vào KPI_DB (KPI_LyLich2C và AppUser local replica)
+            for (int i = 0; i < staffList.Count; i++)
+            {
+                var staff = staffList[i];
+                var reqUser = requestDto.Users[i];
+                
+                BatchCreateUserItemResultDto? accountResult = null;
+                if (!string.IsNullOrEmpty(reqUser.UserName) && resultMap.TryGetValue(reqUser.UserName, out var r1))
+                {
+                    accountResult = r1;
+                }
+                else if (!string.IsNullOrEmpty(reqUser.Email) && resultMap.TryGetValue(reqUser.Email, out var r2))
+                {
+                    accountResult = r2;
+                }
+
+                if (accountResult != null && accountResult.Success && accountResult.UserId.HasValue)
+                {
+                    var userId = accountResult.UserId.Value;
+
+                    // 3.1 Tìm hoặc tạo mới bản ghi KPI_LyLich2C
+                    var lyLich = _kPI_LyLich2CRepository.GetQueryable().FirstOrDefault(x => 
+                        x.UserId == userId || 
+                        (!string.IsNullOrEmpty(staff.MaCanBo) && x.MaCanBo == staff.MaCanBo) ||
+                        (!string.IsNullOrEmpty(staff.Email) && x.Email == staff.Email));
+
+                    bool isNew = false;
+                    if (lyLich == null)
+                    {
+                        isNew = true;
+                        lyLich = new KPI_LyLich2C { Id = Guid.NewGuid() };
+                    }
+
+                    lyLich.UserId = userId;
+                    lyLich.HoTen = staff.HoTen;
+                    lyLich.MaCanBo = staff.MaCanBo;
+                    lyLich.Email = staff.Email;
+                    lyLich.Phone = staff.SoDienThoai;
+                    lyLich.ChucVuHienTai = staff.ChucVu;
+                    lyLich.PhongBanId = staff.PhongBanId ?? Guid.Empty;
+                    lyLich.DonViSuDungId = staff.DonViSuDungId ?? Guid.Empty;
+                    lyLich.Ngaysinh = staff.NgaySinh;
+                    lyLich.GioiTinh = staff.GioiTinh;
+                    lyLich.SoCMND = staff.CCCD;
+                    lyLich.DiaChiHienTai = staff.DiaChi;
+
+                    if (isNew)
+                    {
+                        _kPI_LyLich2CRepository.Add(lyLich);
+                    }
+                    else
+                    {
+                        _kPI_LyLich2CRepository.Update(lyLich);
+                    }
+
+                    // 3.2 Lưu local replica vào bảng AppUser của KPI_DB để query join không bị phụ thuộc
+                    var localUser = _appUserRepository.GetQueryable().FirstOrDefault(x => x.Id == userId);
+                    if (localUser == null)
+                    {
+                        localUser = new AppUser
+                        {
+                            Id = userId,
+                            UserName = reqUser.UserName ?? staff.Email,
+                            Email = staff.Email,
+                            Name = staff.HoTen,
+                            PhoneNumber = staff.SoDienThoai,
+                            DonViId = staff.DonViSuDungId,
+                            CCCD = staff.CCCD,
+                            DiaChi = staff.DiaChi,
+                            NgaySinh = staff.NgaySinh,
+                            Gender = staff.GioiTinh ?? 0,
+                            Type = "1"
+                        };
+                        _appUserRepository.Add(localUser);
+                    }
+                    else
+                    {
+                        localUser.Name = staff.HoTen;
+                        localUser.Email = staff.Email;
+                        localUser.PhoneNumber = staff.SoDienThoai;
+                        localUser.DonViId = staff.DonViSuDungId ?? localUser.DonViId;
+                        _appUserRepository.Update(localUser);
+                    }
+
+                    result.SuccessCount++;
+                    result.Details.Add(new StaffImportResultItemDto
+                    {
+                        MaCanBo = staff.MaCanBo,
+                        HoTen = staff.HoTen,
+                        UserName = reqUser.UserName,
+                        Email = staff.Email,
+                        UserId = userId,
+                        LyLichId = lyLich.Id,
+                        Success = true,
+                        Message = "Import hồ sơ và tạo tài khoản Identity thành công"
+                    });
+                }
+                else
+                {
+                    result.FailedCount++;
+                    result.Details.Add(new StaffImportResultItemDto
+                    {
+                        MaCanBo = staff.MaCanBo,
+                        HoTen = staff.HoTen,
+                        UserName = reqUser.UserName,
+                        Email = staff.Email,
+                        Success = false,
+                        Message = accountResult?.Error ?? identityResponse?.Message ?? "Không thể tạo tài khoản trên Identity Service"
+                    });
+                }
+            }
+
+            await _kPI_LyLich2CRepository.SaveAsync();
+            await _appUserRepository.SaveAsync();
+
+            _logger.LogInformation("✅ [KPI Service] Batch import completed: {Success}/{Total} succeeded.", result.SuccessCount, result.TotalItems);
+            return result;
+        }
+
+        public async Task<BatchStaffImportResultDto> DemoImport10StaffAsync(Guid? donViSuDungId = null)
+        {
+            var dept = donViSuDungId.HasValue 
+                ? _departmentRepository.GetQueryable().FirstOrDefault(x => x.Id == donViSuDungId.Value)
+                : _departmentRepository.GetQueryable().FirstOrDefault();
+
+            var deptId = dept?.Id ?? Guid.NewGuid();
+
+            var demoList = new List<StaffImportItemDto>
+            {
+                new StaffImportItemDto { MaCanBo = "NV001", HoTen = "Nguyễn Văn An", Email = "nguyenvanan@hinet.vn", SoDienThoai = "0901000001", ChucVu = "Chuyên viên", DonViSuDungId = deptId, GioiTinh = 1, CCCD = "001200000001", DiaChi = "Hà Nội" },
+                new StaffImportItemDto { MaCanBo = "NV002", HoTen = "Trần Thị Bình", Email = "tranbinh@hinet.vn", SoDienThoai = "0901000002", ChucVu = "Chuyên viên chính", DonViSuDungId = deptId, GioiTinh = 2, CCCD = "001200000002", DiaChi = "Hà Nội" },
+                new StaffImportItemDto { MaCanBo = "NV003", HoTen = "Lê Hoàng Cường", Email = "lecuong@hinet.vn", SoDienThoai = "0901000003", ChucVu = "Trưởng phòng", DonViSuDungId = deptId, GioiTinh = 1, CCCD = "001200000003", DiaChi = "Hà Nội", Roles = new List<string> { "TruongPhong", "CaNhan" } },
+                new StaffImportItemDto { MaCanBo = "NV004", HoTen = "Phạm Minh Dung", Email = "minhdung@hinet.vn", SoDienThoai = "0901000004", ChucVu = "Phó Trưởng phòng", DonViSuDungId = deptId, GioiTinh = 2, CCCD = "001200000004", DiaChi = "Hải Phòng", Roles = new List<string> { "PhoTruongPhong", "CaNhan" } },
+                new StaffImportItemDto { MaCanBo = "NV005", HoTen = "Hoàng Gia Bảo", Email = "giabao@hinet.vn", SoDienThoai = "0901000005", ChucVu = "Chuyên viên", DonViSuDungId = deptId, GioiTinh = 1, CCCD = "001200000005", DiaChi = "Nam Định" },
+                new StaffImportItemDto { MaCanBo = "NV006", HoTen = "Vũ Thanh Hương", Email = "thanhhuong@hinet.vn", SoDienThoai = "0901000006", ChucVu = "Chuyên viên", DonViSuDungId = deptId, GioiTinh = 2, CCCD = "001200000006", DiaChi = "Hà Nội" },
+                new StaffImportItemDto { MaCanBo = "NV007", HoTen = "Đỗ Quốc Hùng", Email = "quochung@hinet.vn", SoDienThoai = "0901000007", ChucVu = "Kế toán viên", DonViSuDungId = deptId, GioiTinh = 1, CCCD = "001200000007", DiaChi = "Hà Nội" },
+                new StaffImportItemDto { MaCanBo = "NV008", HoTen = "Bùi Tuyết Mai", Email = "tuyetmai@hinet.vn", SoDienThoai = "0901000008", ChucVu = "Nhân viên văn phòng", DonViSuDungId = deptId, GioiTinh = 2, CCCD = "001200000008", DiaChi = "Bắc Ninh" },
+                new StaffImportItemDto { MaCanBo = "NV009", HoTen = "Ngô Văn Nam", Email = "ngovannam@hinet.vn", SoDienThoai = "0901000009", ChucVu = "Chuyên viên CNTT", DonViSuDungId = deptId, GioiTinh = 1, CCCD = "001200000009", DiaChi = "Hà Nội" },
+                new StaffImportItemDto { MaCanBo = "NV010", HoTen = "Trịnh Hồng Phúc", Email = "hongphuc@hinet.vn", SoDienThoai = "0901000010", ChucVu = "Trưởng bộ phận", DonViSuDungId = deptId, GioiTinh = 1, CCCD = "001200000010", DiaChi = "Hà Nội" }
+            };
+
+            return await ImportStaffBatchAsync(demoList, "P@ssword123");
         }
 
     }

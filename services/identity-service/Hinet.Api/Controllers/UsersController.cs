@@ -219,6 +219,112 @@ namespace Hinet.Api.Controllers
             }, "Tạo tài khoản và phát sự kiện đồng bộ thành công"));
         }
 
+        [HttpPost("batch-create")]
+        public async Task<IActionResult> BatchCreateUsers([FromBody] List<CreateUserRequest> requests)
+        {
+            if (requests == null || requests.Count == 0)
+            {
+                return BadRequest(ApiResponse<object>.Fail("Danh sách người dùng không được để trống"));
+            }
+
+            var results = new List<object>();
+            var newCreatedEvents = new List<UserCreatedEvent>();
+
+            foreach (var request in requests)
+            {
+                if (string.IsNullOrWhiteSpace(request.UserName)) continue;
+
+                var normalizedUserName = request.UserName.Trim().ToUpper();
+                var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.NormalizedUserName == normalizedUserName && !u.IsDeleted);
+                bool isNew = false;
+                var roleCodes = request.RoleCodes != null && request.RoleCodes.Count > 0 ? request.RoleCodes : new List<string> { "USER" };
+
+                if (user == null)
+                {
+                    isNew = true;
+                    user = new AppUser
+                    {
+                        Id = Guid.NewGuid(),
+                        UserName = request.UserName.Trim(),
+                        NormalizedUserName = normalizedUserName,
+                        FullName = FixVietnameseEncoding(request.FullName?.Trim() ?? request.UserName.Trim()),
+                        Email = request.Email?.Trim(),
+                        NormalizedEmail = request.Email?.Trim().ToUpper(),
+                        PhoneNumber = request.PhoneNumber?.Trim(),
+                        IsActive = request.IsActive,
+                        CreatedDate = DateTime.UtcNow,
+                        SecurityStamp = Guid.NewGuid().ToString("D")
+                    };
+
+                    var defaultPass = string.IsNullOrWhiteSpace(request.Password) ? "123456" : request.Password;
+                    var createResult = await _userManager.CreateAsync(user, defaultPass);
+                    if (!createResult.Succeeded)
+                    {
+                        continue;
+                    }
+
+                    foreach (var code in roleCodes)
+                    {
+                        var role = await _dbContext.Role.FirstOrDefaultAsync(r => r.Code == code && !r.IsDeleted);
+                        if (role == null)
+                        {
+                            role = new Role
+                            {
+                                Id = Guid.NewGuid(),
+                                Code = code,
+                                Name = code,
+                                Type = "CUSTOM",
+                                IsActive = true,
+                                CreatedDate = DateTime.UtcNow
+                            };
+                            _dbContext.Role.Add(role);
+                            await _dbContext.SaveChangesAsync();
+                        }
+
+                        _dbContext.UserRole.Add(new UserRole
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = user.Id,
+                            RoleId = role.Id,
+                            CreatedDate = DateTime.UtcNow
+                        });
+                    }
+                    await _dbContext.SaveChangesAsync();
+
+                    newCreatedEvents.Add(new UserCreatedEvent
+                    {
+                        UserId = user.Id,
+                        UserName = user.UserName ?? string.Empty,
+                        FullName = user.FullName ?? user.UserName ?? string.Empty,
+                        Email = user.Email,
+                        PhoneNumber = user.PhoneNumber,
+                        Roles = roleCodes,
+                        CreatedAt = user.CreatedDate,
+                        SourceService = "identity-service"
+                    });
+                }
+
+                results.Add(new
+                {
+                    userId = user.Id,
+                    userName = user.UserName,
+                    fullName = user.FullName,
+                    email = user.Email,
+                    phoneNumber = user.PhoneNumber,
+                    roles = roleCodes,
+                    isNew = isNew
+                });
+            }
+
+            // Phát tán RabbitMQ
+            foreach (var evt in newCreatedEvents)
+            {
+                _publisher.PublishUserCreated(evt);
+            }
+
+            return Ok(ApiResponse<object>.Ok(results, $"Xử lý thành công {results.Count} tài khoản ({newCreatedEvents.Count} tạo mới, phát {newCreatedEvents.Count} sự kiện RabbitMQ)"));
+        }
+
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(Guid id, [FromBody] UpdateUserRequest request)
         {

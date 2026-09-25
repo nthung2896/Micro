@@ -313,5 +313,42 @@ namespace Hinet.Controllers
             }
         }
 
+        /// <summary>
+        /// Import danh sách nhân sự hàng loạt, tự động tạo tài khoản SSO trên Identity Service
+        /// và đồng bộ liên kết UserId vào KPI Service Database.
+        /// </summary>
+        [HttpPost("ImportStaffBatch")]
+        public async Task<DataResponse<BatchStaffImportResultDto>> ImportStaffBatch([FromBody] List<StaffImportItemDto> staffList, [FromQuery] string? defaultPassword = null)
+        {
+            try
+            {
+                var result = await _kPI_LyLich2CService.ImportStaffBatchAsync(staffList, defaultPassword);
+                return DataResponse<BatchStaffImportResultDto>.Success(result, $"Đã xử lý {result.SuccessCount}/{result.TotalItems} nhân sự.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi import danh sách nhân sự hàng loạt");
+                return DataResponse<BatchStaffImportResultDto>.False(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// DEMO: Tạo và Import mẫu 10 nhân sự, tự động gọi Identity Service tạo tài khoản Identity_DB
+        /// </summary>
+        [HttpPost("DemoImport10Staff")]
+        public async Task<DataResponse<BatchStaffImportResultDto>> DemoImport10Staff([FromQuery] Guid? donViSuDungId = null)
+        {
+            try
+            {
+                var result = await _kPI_LyLich2CService.DemoImport10StaffAsync(donViSuDungId);
+                return DataResponse<BatchStaffImportResultDto>.Success(result, $"Đã hoàn tất DEMO Import {result.SuccessCount}/{result.TotalItems} nhân sự với tài khoản Identity.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi chạy DEMO import 10 nhân sự");
+                return DataResponse<BatchStaffImportResultDto>.False(ex.Message);
+            }
+        }
+
     }
 }
