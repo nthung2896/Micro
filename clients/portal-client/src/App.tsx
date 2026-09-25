@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  BarChart3, 
-  Home, 
-  ShieldCheck, 
-  FolderGit2, 
-  ExternalLink, 
-  LogOut, 
-  Search, 
-  Plus, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  BarChart3,
+  Home,
+  ShieldCheck,
+  FolderGit2,
+  ExternalLink,
+  LogOut,
+  Search,
+  Plus,
+  CheckCircle2,
+  AlertCircle,
   PackageCheck,
   Users,
   Key,
@@ -92,7 +92,7 @@ interface EventItem {
 // Hàm tự động chuẩn hóa & giải mã tiếng Việt bị lỗi font (Mojibake UTF-8)
 export const decodeVietnamese = (text?: string): string => {
   if (!text) return '';
-  
+
   if (text.includes('Quá') || text.includes('Quáº£n') || text.includes('viÃªn toÃ n')) {
     return 'Quản trị viên toàn hệ thống';
   }
@@ -172,12 +172,22 @@ const APPS: AppItem[] = [
   }
 ];
 
-const API_BASE = 'http://localhost:5000/api/auth';
+const API_BASE = 'http://localhost:5001/api/auth';
 
 export default function App() {
-  // Auth State
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('sso_portal_token'));
+  // Auth State - Tự động xóa token giả/cũ (sso_jwt_...) để đảm bảo luôn dùng JWT chuẩn HMAC-SHA256
+  const [token, setToken] = useState<string | null>(() => {
+    const saved = localStorage.getItem('sso_portal_token');
+    if (saved && (saved.startsWith('sso_jwt_') || saved.length < 50)) {
+      localStorage.removeItem('sso_portal_token');
+      localStorage.removeItem('sso_portal_user');
+      return null;
+    }
+    return saved;
+  });
   const [user, setUser] = useState<{ username: string; fullName: string; role: string; roles: string[] } | null>(() => {
+    const savedToken = localStorage.getItem('sso_portal_token');
+    if (!savedToken) return null;
     const saved = localStorage.getItem('sso_portal_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -352,7 +362,7 @@ export default function App() {
           setEventList(json.data);
         }
       }
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -371,14 +381,14 @@ export default function App() {
 
     try {
       let activeToken = '';
-      let rolesArr: string[] = ['ADMIN', 'ROLE_TAISAN', 'ROLE_KPI'];
+      let rolesArr: string[] = ['ADMIN', 'ROLE_TAISAN', 'ROLE_KPI', 'ROLE_ROOM'];
       let fullName = username === 'admin' ? 'Quản Trị Viên Toàn Hệ Thống' : username;
 
       try {
         const authRes = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userName: username, password: password })
+          body: JSON.stringify({ Username: username, UserName: username, password: password })
         });
 
         const data = await authRes.json();
@@ -896,17 +906,17 @@ export default function App() {
           </div>
 
           {errorMsg && (
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '8px', 
-              padding: '10px 14px', 
-              backgroundColor: '#fff2f0', 
-              border: '1px solid #ffccc7', 
-              borderRadius: '6px', 
-              color: '#cf1322', 
-              fontSize: '13px', 
-              marginBottom: '18px' 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 14px',
+              backgroundColor: '#fff2f0',
+              border: '1px solid #ffccc7',
+              borderRadius: '6px',
+              color: '#cf1322',
+              fontSize: '13px',
+              marginBottom: '18px'
             }}>
               <AlertCircle size={16} style={{ flexShrink: 0 }} />
               <span>{errorMsg}</span>
@@ -1256,7 +1266,7 @@ export default function App() {
 
         {/* Right Main Content Area (Full width) */}
         <main style={{ flex: 1, padding: '16px 20px', width: '100%', minWidth: 0, overflowX: 'hidden' }}>
-          
+
           {/* ==================================================== */}
           {/* TAB 1: APP LAUNCHER                                  */}
           {/* ==================================================== */}
