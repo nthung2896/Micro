@@ -155,8 +155,11 @@ namespace Hinet.Service.RabbitMQ
         private void ProcessEvent(string routingKey, string jsonMessage)
         {
             using var scope = _scopeFactory.CreateScope();
-            var repo = scope.ServiceProvider.GetService<IRepository<AppUser>>();
-            if (repo == null)
+            var userRepo = scope.ServiceProvider.GetService<IRepository<AppUser>>();
+            var roleRepo = scope.ServiceProvider.GetService<IRepository<Role>>();
+            var userRoleRepo = scope.ServiceProvider.GetService<IRepository<UserRole>>();
+
+            if (userRepo == null)
             {
                 _logger.LogWarning("⚠️ [KpiService - RabbitMQ] IRepository<AppUser> not found in scope");
                 return;
@@ -185,10 +188,10 @@ namespace Hinet.Service.RabbitMQ
                 }
             }
 
-            var existingUser = repo.GetQueryable().FirstOrDefault(u => u.UserName == userName || u.Id == userId);
+            var existingUser = userRepo.GetQueryable().FirstOrDefault(u => u.UserName == userName || u.Id == userId);
             if (existingUser == null)
             {
-                var newUser = new AppUser
+                existingUser = new AppUser
                 {
                     Id = userId,
                     UserName = userName,
@@ -199,8 +202,8 @@ namespace Hinet.Service.RabbitMQ
                     CreatedDate = DateTime.UtcNow,
                     IsDeleted = false
                 };
-                repo.Add(newUser);
-                repo.SaveAsync().GetAwaiter().GetResult();
+                userRepo.Add(existingUser);
+                userRepo.SaveAsync().GetAwaiter().GetResult();
                 _logger.LogInformation("🎉 [KpiService - RabbitMQ Sync] ✅ Synced NEW User @{UserName} (Id: {Id}) into Base_DB database!", userName, userId);
             }
             else
@@ -209,9 +212,64 @@ namespace Hinet.Service.RabbitMQ
                 existingUser.Email = email ?? existingUser.Email;
                 existingUser.PhoneNumber = phone ?? existingUser.PhoneNumber;
                 existingUser.UpdatedDate = DateTime.UtcNow;
-                repo.Update(existingUser);
-                repo.SaveAsync().GetAwaiter().GetResult();
+                userRepo.Update(existingUser);
+                userRepo.SaveAsync().GetAwaiter().GetResult();
                 _logger.LogInformation("🔄 [KpiService - RabbitMQ Sync] 🔄 Updated User @{UserName} in Base_DB database.", userName);
+            }
+
+            // Sync User Roles mapping
+            if (roleRepo != null && userRoleRepo != null)
+            {
+                List<string> roleCodes = new();
+                if (root.TryGetProperty("Roles", out var rolesProp) || root.TryGetProperty("roles", out rolesProp))
+                {
+                    if (rolesProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var r in rolesProp.EnumerateArray())
+                        {
+                            var rStr = r.GetString();
+                            if (!string.IsNullOrWhiteSpace(rStr)) roleCodes.Add(rStr);
+                        }
+                    }
+                }
+
+                if (roleCodes.Count > 0)
+                {
+                    foreach (var code in roleCodes)
+                    {
+                        var role = roleRepo.GetQueryable().FirstOrDefault(r => r.Code == code && !r.IsDeleted);
+                        if (role == null)
+                        {
+                            role = new Role
+                            {
+                                Id = Guid.NewGuid(),
+                                Code = code,
+                                Name = code,
+                                Type = "KPI",
+                                IsActive = true,
+                                CreatedDate = DateTime.UtcNow,
+                                IsDeleted = false
+                            };
+                            roleRepo.Add(role);
+                            roleRepo.SaveAsync().GetAwaiter().GetResult();
+                        }
+
+                        var hasUserRole = userRoleRepo.GetQueryable().Any(ur => ur.UserId == existingUser.Id && ur.RoleId == role.Id && !ur.IsDeleted);
+                        if (!hasUserRole)
+                        {
+                            userRoleRepo.Add(new UserRole
+                            {
+                                Id = Guid.NewGuid(),
+                                UserId = existingUser.Id,
+                                RoleId = role.Id,
+                                CreatedDate = DateTime.UtcNow,
+                                IsDeleted = false
+                            });
+                            userRoleRepo.SaveAsync().GetAwaiter().GetResult();
+                            _logger.LogInformation("🔑 [KpiService - RabbitMQ Sync] Mapped User @{UserName} to Role {RoleCode} in Base_DB", userName, code);
+                        }
+                    }
+                }
             }
         }
 
