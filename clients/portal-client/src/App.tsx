@@ -315,6 +315,24 @@ export default function App() {
     }
   };
 
+  const handleSyncAllUsers = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/events/sync-all`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        notify(json.message || 'Đã đồng bộ toàn bộ tài khoản sang RabbitMQ!');
+        fetchEvents();
+      } else {
+        notify(json.message || 'Lỗi đồng bộ', 'error');
+      }
+    } catch (_) {
+      notify('Lỗi kết nối máy chủ', 'error');
+    }
+  };
+
   useEffect(() => {
     if (token) {
       fetchUsers();
@@ -1312,6 +1330,15 @@ export default function App() {
                 <button onClick={fetchEvents} className="btn-secondary" title="Làm mới sự kiện">
                   <RefreshCw size={14} />
                   <span>Tải lại</span>
+                </button>
+                <button
+                  onClick={handleSyncAllUsers}
+                  className="btn-secondary"
+                  style={{ color: '#005baa', borderColor: '#91caff', backgroundColor: '#e6f4ff' }}
+                  title="Đồng bộ toàn bộ tài khoản từ Identity_DB sang RabbitMQ"
+                >
+                  <RefreshCw size={14} />
+                  <span>Đồng Bộ Toàn Bộ User Identity $\to$ RabbitMQ</span>
                 </button>
                 <button
                   onClick={handlePublishTestEvent}
