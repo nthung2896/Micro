@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SharedKernel.Models;
 using SharedKernel.Security;
+using Hinet.Model.Entities;
+using Hinet.Repository;
 
-namespace IdentityService.Controllers
+namespace Hinet.Api.Controllers
 {
     [ApiController]
     [Route("api/auth")]
@@ -15,9 +17,9 @@ namespace IdentityService.Controllers
     public class AuthController : ControllerBase
     {
         private readonly JwtOptions _jwtOptions;
-        private readonly IdentityService.Data.IdentityContext _dbContext;
+        private readonly IdentityContext _dbContext;
 
-        public AuthController(IdentityService.Data.IdentityContext dbContext, JwtOptions jwtOptions)
+        public AuthController(IdentityContext dbContext, JwtOptions jwtOptions)
         {
             _dbContext = dbContext;
             _jwtOptions = jwtOptions;
@@ -29,7 +31,7 @@ namespace IdentityService.Controllers
             var userCount = _dbContext.Users.Count();
             return Ok(ApiResponse<object>.Ok(new
             {
-                service = "Identity Service",
+                service = "Identity Service (Hinet.Api)",
                 status = "Healthy",
                 database = "Identity_DB",
                 totalUsers = userCount,
@@ -51,46 +53,73 @@ namespace IdentityService.Controllers
 
             if (user == null)
             {
-                // Auto-seed admin if missing
                 if (normalizedUserName == "ADMIN")
                 {
-                    user = new IdentityService.Entities.AppUser
+                    user = new AppUser
                     {
                         Id = Guid.NewGuid(),
                         UserName = "admin",
                         NormalizedUserName = "ADMIN",
-                        FullName = "Quản trị viên toàn hệ thống",
-                        Email = "admin@system.local",
-                        NormalizedEmail = "ADMIN@SYSTEM.LOCAL",
+                        FullName = "Quản Trị Viên Hệ Thống",
+                        Email = "admin@ebizoffice.vn",
+                        NormalizedEmail = "ADMIN@EBIZOFFICE.VN",
+                        EmailConfirmed = true,
                         IsActive = true,
-                        CreatedDate = DateTime.UtcNow
+                        CreatedDate = DateTime.UtcNow,
+                        SecurityStamp = Guid.NewGuid().ToString("D")
                     };
-                    var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<IdentityService.Entities.AppUser>();
+
+                    var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<AppUser>();
                     user.PasswordHash = hasher.HashPassword(user, "123456");
+
                     _dbContext.Users.Add(user);
+                    await _dbContext.SaveChangesAsync();
+
+                    var adminRole = await _dbContext.Role.FirstOrDefaultAsync(r => r.Code == "ADMIN");
+                    if (adminRole == null)
+                    {
+                        adminRole = new Role
+                        {
+                            Id = Guid.NewGuid(),
+                            Code = "ADMIN",
+                            Name = "Quản trị viên toàn hệ thống",
+                            Type = "SYSTEM",
+                            IsActive = true,
+                            CreatedDate = DateTime.UtcNow
+                        };
+                        _dbContext.Role.Add(adminRole);
+                        await _dbContext.SaveChangesAsync();
+                    }
+
+                    _dbContext.UserRole.Add(new UserRole
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = user.Id,
+                        RoleId = adminRole.Id,
+                        CreatedDate = DateTime.UtcNow
+                    });
                     await _dbContext.SaveChangesAsync();
                 }
                 else
                 {
-                    return BadRequest(ApiResponse<object>.Fail("Tài khoản không tồn tại hoặc đã bị khóa"));
+                    return BadRequest(ApiResponse<object>.Fail("Tài khoản không tồn tại"));
                 }
             }
 
             if (!user.IsActive)
             {
-                return BadRequest(ApiResponse<object>.Fail("Tài khoản này hiện đang bị khóa"));
+                return BadRequest(ApiResponse<object>.Fail("Tài khoản này đã bị khóa"));
             }
 
-            // Kiểm tra mật khẩu
+            var passwordHasher = new Microsoft.AspNetCore.Identity.PasswordHasher<AppUser>();
             bool isPasswordValid = false;
+            
             if (!string.IsNullOrEmpty(user.PasswordHash))
             {
-                var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<IdentityService.Entities.AppUser>();
-                var verifyResult = hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+                var verifyResult = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
                 isPasswordValid = verifyResult != Microsoft.AspNetCore.Identity.PasswordVerificationResult.Failed;
             }
 
-            // Hỗ trợ mật khẩu mặc định nếu dev test
             if (!isPasswordValid && (request.Password == "123456" || request.Password == "12345678" || request.Password == "Hung@2025"))
             {
                 isPasswordValid = true;
@@ -101,7 +130,6 @@ namespace IdentityService.Controllers
                 return BadRequest(ApiResponse<object>.Fail("Mật khẩu không chính xác"));
             }
 
-            // Lấy danh sách Roles từ bảng UserRole và Role chuẩn Hinet
             var userRoles = await (from ur in _dbContext.UserRole
                                    join r in _dbContext.Role on ur.RoleId equals r.Id
                                    where ur.UserId == user.Id && !r.IsDeleted && !ur.IsDeleted
@@ -137,7 +165,7 @@ namespace IdentityService.Controllers
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
             var usernameClaim = User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst("username")?.Value;
 
-            IdentityService.Entities.AppUser? user = null;
+            AppUser? user = null;
             if (Guid.TryParse(userIdClaim, out var userId))
             {
                 user = await _dbContext.Users.FindAsync(userId);
@@ -159,33 +187,24 @@ namespace IdentityService.Controllers
 
             if (roles.Count == 0)
             {
-                roles = new List<string> { "ADMIN", "ROLE_TAISAN", "ROLE_KPI", "ROLE_ROOM" };
+                roles = new List<string?> { "ADMIN", "ROLE_TAISAN", "ROLE_KPI", "ROLE_ROOM", "USER" };
             }
 
-            return Ok(new
+            return Ok(ApiResponse<object>.Ok(new
             {
-                status = true,
-                data = new
-                {
-                    id = user.Id,
-                    userName = user.UserName,
-                    name = user.FullName ?? user.UserName,
-                    email = user.Email,
-                    phoneNumber = user.PhoneNumber,
-                    roles = roles,
-                    listRole = roles,
-                    vaiTro = roles,
-                    type = roles.FirstOrDefault() ?? "ADMIN",
-                    typeAccount = 1
-                },
-                message = "Lấy thông tin người dùng thành công"
-            });
-        }
-
-        [HttpPost("Logout")]
-        public IActionResult Logout()
-        {
-            return Ok(ApiResponse<object>.Ok(new object(), "Đăng xuất thành công"));
+                id = user.Id,
+                userId = user.Id,
+                userName = user.UserName,
+                name = user.FullName ?? user.UserName,
+                fullName = user.FullName ?? user.UserName,
+                email = user.Email,
+                phoneNumber = user.PhoneNumber,
+                avatar = user.Avatar,
+                listRole = roles,
+                roles = roles,
+                type = roles.FirstOrDefault() ?? "ADMIN",
+                status = true
+            }, "Lấy thông tin tài khoản thành công"));
         }
     }
 

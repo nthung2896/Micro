@@ -41,8 +41,10 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
-  Info
+  Info,
+  Network
 } from 'lucide-react';
+import { DepartmentsTab } from './DepartmentsTab';
 
 interface AppItem {
   id: string;
@@ -202,8 +204,8 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Active Tab: 'launcher' | 'users' | 'roles' | 'events'
-  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles' | 'events'>('launcher');
+  // Active Tab: 'launcher' | 'users' | 'roles' | 'departments' | 'events'
+  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles' | 'departments' | 'events'>('launcher');
 
   // Master Data States
   const [userList, setUserList] = useState<UserItem[]>([]);
@@ -388,7 +390,7 @@ export default function App() {
         const authRes = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ Username: username, UserName: username, password: password })
+          body: JSON.stringify({ userName: username, password: password })
         });
 
         if (authRes.ok) {
@@ -1233,7 +1235,24 @@ export default function App() {
               )}
             </div>
 
-            {/* Menu Item 4: Events (RabbitMQ) */}
+            {/* Menu Item 4: Departments / Organization Structure */}
+            <div
+              onClick={() => setActiveTab('departments')}
+              className={`menu-nav-item ${activeTab === 'departments' ? 'active' : ''}`}
+              title="Cơ Cấu Tổ Chức & Sơ Đồ Phòng Ban"
+            >
+              <Network size={18} style={{ color: activeTab === 'departments' ? '#005baa' : '#6b7280', flexShrink: 0 }} />
+              {!isSidebarCollapsed && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span>Cơ Cấu Tổ Chức</span>
+                  <span style={{ fontSize: '10.5px', background: activeTab === 'departments' ? '#bae0ff' : '#f3f4f6', color: activeTab === 'departments' ? '#005baa' : '#6b7280', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                    Phòng ban
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Menu Item 5: Events (RabbitMQ) */}
             <div
               onClick={() => setActiveTab('events')}
               className={`menu-nav-item ${activeTab === 'events' ? 'active' : ''}`}
@@ -2300,6 +2319,13 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ==================================================== */}
+          {/* TAB 4: CƠ CẤU TỔ CHỨC & PHÒNG BAN (MASTER DATA)      */}
+          {/* ==================================================== */}
+          {activeTab === 'departments' && (
+            <DepartmentsTab token={token} notify={notify} onRefreshEvents={fetchEvents} />
           )}
 
         </main>

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -6,13 +8,57 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using SharedKernel.Events;
 
-namespace IdentityService.Services
+namespace Hinet.Service.RabbitMQ
 {
+    public interface IEventLogService
+    {
+        void LogEvent(EventLogItem item);
+        List<EventLogItem> GetRecentLogs(int count = 50);
+        void ClearLogs();
+    }
+
+    public class EventLogService : IEventLogService
+    {
+        private static readonly List<EventLogItem> _logs = new();
+        private static readonly object _lock = new();
+
+        public void LogEvent(EventLogItem item)
+        {
+            lock (_lock)
+            {
+                _logs.Insert(0, item);
+                if (_logs.Count > 200)
+                {
+                    _logs.RemoveAt(_logs.Count - 1);
+                }
+            }
+        }
+
+        public List<EventLogItem> GetRecentLogs(int count = 50)
+        {
+            lock (_lock)
+            {
+                return _logs.Take(count).ToList();
+            }
+        }
+
+        public void ClearLogs()
+        {
+            lock (_lock)
+            {
+                _logs.Clear();
+            }
+        }
+    }
+
     public interface IRabbitMQPublisher
     {
         void PublishUserCreated(UserCreatedEvent evt);
         void PublishUserUpdated(UserUpdatedEvent evt);
         void PublishUserRolesChanged(UserRolesChangedEvent evt);
+        void PublishDepartmentCreated(DepartmentCreatedEvent evt);
+        void PublishDepartmentUpdated(DepartmentUpdatedEvent evt);
+        void PublishDepartmentDeleted(DepartmentDeletedEvent evt);
     }
 
     public class RabbitMQPublisher : IRabbitMQPublisher, IDisposable
@@ -64,7 +110,6 @@ namespace IdentityService.Services
                 _connection = factory.CreateConnection();
                 _channel = _connection.CreateModel();
 
-                // Khởi tạo Topic Exchange chuẩn cho Event-Driven User Events
                 _channel.ExchangeDeclare(
                     exchange: RabbitMQConstants.UserExchange,
                     type: ExchangeType.Topic,
@@ -80,7 +125,6 @@ namespace IdentityService.Services
         {
             var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
             
-            // Lưu log lịch sử sự kiện để hiển thị trực tiếp trên UI / API Demo
             _eventLogService.LogEvent(new EventLogItem
             {
                 EventType = eventType,
@@ -89,7 +133,7 @@ namespace IdentityService.Services
                 Status = "Published to RabbitMQ",
                 Timestamp = DateTime.UtcNow,
                 Source = "identity-service",
-                Consumers = new System.Collections.Generic.List<string> { "asset-service", "kpi-service" }
+                Consumers = new List<string> { "asset-service", "kpi-service" }
             });
 
             try
@@ -147,6 +191,21 @@ namespace IdentityService.Services
         public void PublishUserRolesChanged(UserRolesChangedEvent evt)
         {
             Publish(RabbitMQConstants.UserRolesChangedRoutingKey, evt, nameof(UserRolesChangedEvent));
+        }
+
+        public void PublishDepartmentCreated(DepartmentCreatedEvent evt)
+        {
+            Publish(DepartmentRabbitMQConstants.DepartmentCreatedRoutingKey, evt, nameof(DepartmentCreatedEvent));
+        }
+
+        public void PublishDepartmentUpdated(DepartmentUpdatedEvent evt)
+        {
+            Publish(DepartmentRabbitMQConstants.DepartmentUpdatedRoutingKey, evt, nameof(DepartmentUpdatedEvent));
+        }
+
+        public void PublishDepartmentDeleted(DepartmentDeletedEvent evt)
+        {
+            Publish(DepartmentRabbitMQConstants.DepartmentDeletedRoutingKey, evt, nameof(DepartmentDeletedEvent));
         }
 
         public void Dispose()
