@@ -381,18 +381,20 @@ export default function App() {
           body: JSON.stringify({ userName: username, password: password })
         });
 
-        if (authRes.ok) {
-          const data = await authRes.json();
-          if (data.data?.token || data.token) {
-            activeToken = data.data?.token || data.token;
-            if (data.data?.user?.roles) rolesArr = data.data.user.roles;
-            if (data.data?.user?.fullName) fullName = decodeVietnamese(data.data.user.fullName);
-          }
+        const data = await authRes.json();
+        if (authRes.ok && (data.data?.token || data.token)) {
+          activeToken = data.data?.token || data.token;
+          if (data.data?.user?.roles) rolesArr = data.data.user.roles;
+          if (data.data?.user?.fullName) fullName = decodeVietnamese(data.data.user.fullName);
+        } else {
+          setErrorMsg(data.message || 'Mật khẩu không chính xác hoặc lỗi đăng nhập.');
+          setIsLoading(false);
+          return; // Dừng lại, không tạo token giả
         }
-      } catch (_) {}
-
-      if (!activeToken) {
-        activeToken = `sso_jwt_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      } catch (_) {
+        setErrorMsg('Không thể kết nối đến Identity Service.');
+        setIsLoading(false);
+        return;
       }
 
       const userData = {
