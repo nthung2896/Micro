@@ -100,28 +100,16 @@ const MenuItemSignOut: React.FC<MenuItemSignOutProps> = ({ label }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const handleSignOut = async () => {
-    const idToken = localStorage.getItem("IdTokenHint");
-    if (idToken) {
-      try {
-        const res = await authService.getSsoLogoutUrl(idToken);
-        if (res.status && res.data?.url) {
-          dispatch(setLogout());
-          dispatch(resetMenuData());
-          window.location.href = res.data.url;
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to get SSO logout URL:", err);
-      }
-    }
-
     dispatch(setLogout());
     dispatch(resetMenuData());
-    // Hard reload thay vì router.push: dashboard layout import 1 bộ global.css
-    // nặng (tailwind + AntD overrides) — Next.js App Router KHÔNG unload các
-    // global CSS này khi soft-nav, nên trang portal sẽ bị "đè" style. Full
-    // reload đảm bảo CSS sạch + reset luôn redux/cache phía client.
-    window.location.href = "/";
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("AccessToken");
+      localStorage.removeItem("IdTokenHint");
+      localStorage.removeItem("USER_INFO");
+      const currentOrigin = window.location.origin;
+      window.location.href = `http://localhost:3000/?action=logout&redirect_uri=${encodeURIComponent(currentOrigin + "/auth/login")}`;
+    }
   };
 
   return (

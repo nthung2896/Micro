@@ -163,30 +163,67 @@ namespace Hinet.Model
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            var entries = ChangeTracker.Entries<AuditableEntity>();
-
             Guid.TryParse(_httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier), out var userId);
             var userName = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name);
-            foreach (var entry in entries)
+
+            foreach (var entry in ChangeTracker.Entries())
             {
-                if (entry.State == EntityState.Added)
+                if (entry.Entity is IAuditableEntity auditable)
                 {
-                    entry.Entity.CreatedDate = DateTime.Now;
-                    entry.Entity.CreatedId = userId;
-                    entry.Entity.CreatedBy = userName;
+                    if (entry.State == EntityState.Added)
+                    {
+                        if (auditable.CreatedDate == default || auditable.CreatedDate < new DateTime(1970, 1, 1))
+                        {
+                            auditable.CreatedDate = DateTime.Now;
+                        }
+                        if (auditable.UpdatedDate == default || auditable.UpdatedDate < new DateTime(1970, 1, 1))
+                        {
+                            auditable.UpdatedDate = DateTime.Now;
+                        }
+                        if (auditable.CreatedId == null || auditable.CreatedId == Guid.Empty)
+                        {
+                            auditable.CreatedId = userId != Guid.Empty ? userId : null;
+                        }
+                        if (string.IsNullOrEmpty(auditable.CreatedBy))
+                        {
+                            auditable.CreatedBy = userName;
+                        }
+                    }
+                    else if (entry.State == EntityState.Modified)
+                    {
+                        auditable.UpdatedDate = DateTime.Now;
+                        auditable.UpdatedId = userId != Guid.Empty ? userId : null;
+                        auditable.UpdatedBy = userName;
+                    }
+                    else if (entry.State == EntityState.Deleted)
+                    {
+                        entry.State = EntityState.Modified;
+                        auditable.IsDeleted = true;
+                        auditable.DeletedDate = DateTime.Now;
+                        auditable.DeletedId = userId != Guid.Empty ? userId : null;
+                    }
                 }
-                else if (entry.State == EntityState.Modified)
+                else if (entry.Entity is AuditableEntity auditableClass)
                 {
-                    entry.Entity.UpdatedDate = DateTime.Now;
-                    entry.Entity.UpdatedId = userId;
-                    entry.Entity.UpdatedBy = userName;
-                }
-                else if (entry.State == EntityState.Deleted)
-                {
-                    entry.State = EntityState.Modified;
-                    entry.Entity.IsDeleted = true;
-                    entry.Entity.DeletedDate = DateTime.Now;
-                    entry.Entity.DeletedId = userId;
+                    if (entry.State == EntityState.Added)
+                    {
+                        auditableClass.CreatedDate = DateTime.Now;
+                        auditableClass.CreatedId = userId;
+                        auditableClass.CreatedBy = userName;
+                    }
+                    else if (entry.State == EntityState.Modified)
+                    {
+                        auditableClass.UpdatedDate = DateTime.Now;
+                        auditableClass.UpdatedId = userId;
+                        auditableClass.UpdatedBy = userName;
+                    }
+                    else if (entry.State == EntityState.Deleted)
+                    {
+                        entry.State = EntityState.Modified;
+                        auditableClass.IsDeleted = true;
+                        auditableClass.DeletedDate = DateTime.Now;
+                        auditableClass.DeletedId = userId;
+                    }
                 }
             }
 

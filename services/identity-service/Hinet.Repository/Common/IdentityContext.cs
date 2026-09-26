@@ -1,8 +1,9 @@
+using System;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using IdentityService.Entities;
+using Hinet.Model.Entities;
 
-namespace IdentityService.Data
+namespace Hinet.Repository
 {
     public class IdentityContext : IdentityDbContext<AppUser, AppRole, Guid>
     {
@@ -15,12 +16,12 @@ namespace IdentityService.Data
         public DbSet<Module> Module { get; set; }
         public DbSet<Operation> Operation { get; set; }
         public DbSet<RoleOperation> RoleOperation { get; set; }
+        public DbSet<Department> Department { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
 
-            // Sử dụng chuẩn tên bảng đồng bộ với Hinet
             builder.Entity<AppUser>(b => b.ToTable("AspNetUsers"));
             builder.Entity<AppRole>(b => b.ToTable("AspNetRoles"));
             builder.Entity<Role>(b => b.ToTable("Role"));
@@ -28,6 +29,7 @@ namespace IdentityService.Data
             builder.Entity<Module>(b => b.ToTable("Module"));
             builder.Entity<Operation>(b => b.ToTable("Operation"));
             builder.Entity<RoleOperation>(b => b.ToTable("RoleOperation"));
+            builder.Entity<Department>(b => b.ToTable("Department"));
         }
     }
 }

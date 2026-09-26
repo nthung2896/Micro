@@ -636,10 +636,8 @@ const QLNguoiDung: React.FC = () => {
     downloadFileFromBase64(excelBase64.data, "Danh sách người dùng.xlsx");
   };
   const handleShowModal = (isEdit?: boolean, user?: AppUserType) => {
+    setCurrentUser(isEdit && user ? user : null);
     setIsOpenModal(true);
-    if (isEdit) {
-      setCurrentUser(user || null);
-    }
   };
 
   const handleClose = () => {

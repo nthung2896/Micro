@@ -68,6 +68,17 @@ const SsoCallback: React.FC = () => {
           }
 
           // ---- B2. Gọi GetInfo lấy hồ sơ user + menu quyền ----
+          let jwtRoles: string[] = [];
+          try {
+            const parts = token.split('.');
+            if (parts.length === 3) {
+              const payload = JSON.parse(decodeURIComponent(escape(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))));
+              const rawRole = payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload['role'] || payload['roles'];
+              if (Array.isArray(rawRole)) jwtRoles = rawRole;
+              else if (typeof rawRole === 'string') jwtRoles = [rawRole];
+            }
+          } catch (e) {}
+
           const response = await authService.getInfo();
 
           if (response && ((response as any).data || (response as any).userName || (response as any).name)) {
@@ -76,6 +87,7 @@ const SsoCallback: React.FC = () => {
               ...(resData.listRole || []),
               ...(resData.roles || []),
               ...(resData.vaiTro || []),
+              ...jwtRoles,
               resData.type || ''
             ].filter(Boolean);
             

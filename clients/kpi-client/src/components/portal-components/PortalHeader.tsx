@@ -148,24 +148,16 @@ export default function PortalHeader() {
   }, []);
 
   const handleLogout = async () => {
-    const idToken = localStorage.getItem("IdTokenHint");
-    if (idToken) {
-      try {
-        const res = await authService.getSsoLogoutUrl(idToken);
-        if (res.status && res.data?.url) {
-          dispatch(setLogout());
-          dispatch(resetMenuData());
-          window.location.href = res.data.url;
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to get SSO logout URL:", err);
-      }
-    }
-
     dispatch(setLogout());
     dispatch(resetMenuData());
-    router.push("/");
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("AccessToken");
+      localStorage.removeItem("IdTokenHint");
+      localStorage.removeItem("USER_INFO");
+      const currentOrigin = window.location.origin;
+      window.location.href = `http://localhost:3000/?action=logout&redirect_uri=${encodeURIComponent(currentOrigin + "/auth/login")}`;
+    }
   };
 
   const buildHref = (href: string): string => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart3,
   Home,
@@ -41,8 +42,10 @@ import {
   ChevronLeft,
   ChevronsLeft,
   ChevronsRight,
-  Info
+  Info,
+  Network
 } from 'lucide-react';
+import { DepartmentsTab } from './DepartmentsTab';
 
 interface AppItem {
   id: string;
@@ -174,9 +177,27 @@ const APPS: AppItem[] = [
 
 const API_BASE = 'http://localhost:5001/api/auth';
 
+// Danh sách vai trò mặc định cho hệ sinh thái Microservices
+const DEFAULT_SYSTEM_ROLES: RoleItem[] = [
+  { id: '1', code: 'ADMIN', name: 'Quản trị viên toàn hệ thống', type: 'SYSTEM', isActive: true },
+  { id: '2', code: 'ROLE_TAISAN', name: 'Cán bộ Quản lý Tài sản', type: 'ASSET', isActive: true },
+  { id: '3', code: 'ROLE_KPI', name: 'Cán bộ Đánh giá KPI & Thi đua', type: 'KPI', isActive: true },
+  { id: '4', code: 'ROLE_ROOM', name: 'Quản lý Phòng trọ & Ví tiền', type: 'ROOM', isActive: true },
+  { id: '5', code: 'MANAGER', name: 'Quản lý bộ phận', type: 'GENERAL', isActive: true },
+  { id: '6', code: 'USER', name: 'Người dùng thông thường', type: 'GENERAL', isActive: true }
+];
+
 export default function App() {
-  // Auth State - Tự động xóa token giả/cũ (sso_jwt_...) để đảm bảo luôn dùng JWT chuẩn HMAC-SHA256
+  // Auth State - Tự động xóa token giả/cũ (sso_jwt_...) hoặc khi có yêu cầu Single Sign-Out (SSO Logout)
   const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'logout' || params.get('logout') === 'true') {
+        localStorage.removeItem('sso_portal_token');
+        localStorage.removeItem('sso_portal_user');
+        return null;
+      }
+    }
     const saved = localStorage.getItem('sso_portal_token');
     if (saved && (saved.startsWith('sso_jwt_') || saved.length < 50)) {
       localStorage.removeItem('sso_portal_token');
@@ -186,11 +207,40 @@ export default function App() {
     return saved;
   });
   const [user, setUser] = useState<{ username: string; fullName: string; role: string; roles: string[] } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'logout' || params.get('logout') === 'true') {
+        return null;
+      }
+    }
     const savedToken = localStorage.getItem('sso_portal_token');
     if (!savedToken) return null;
     const saved = localStorage.getItem('sso_portal_user');
     return saved ? JSON.parse(saved) : null;
   });
+
+  // Single Sign-Out Handler từ service con
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isLogout = params.get('action') === 'logout' || params.get('logout') === 'true';
+    const redirectUri = params.get('redirect_uri');
+
+    if (isLogout) {
+      localStorage.removeItem('sso_portal_token');
+      localStorage.removeItem('sso_portal_user');
+      setToken(null);
+      setUser(null);
+
+      if (redirectUri && !redirectUri.includes('3000')) {
+        // Chuyển hướng trở lại service con sau khi đã xóa sạch SSO session
+        window.location.href = redirectUri;
+      } else {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setToastMsg({ text: 'Đã đăng xuất toàn bộ hệ thống SSO thành công', type: 'success' });
+        setTimeout(() => setToastMsg(null), 4000);
+      }
+    }
+  }, []);
 
   // Layout Sidebar Collapse State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -202,12 +252,12 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Active Tab: 'launcher' | 'users' | 'roles' | 'events'
-  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles' | 'events'>('launcher');
+  // Active Tab: 'launcher' | 'users' | 'roles' | 'departments' | 'events'
+  const [activeTab, setActiveTab] = useState<'launcher' | 'users' | 'roles' | 'departments' | 'events'>('launcher');
 
   // Master Data States
   const [userList, setUserList] = useState<UserItem[]>([]);
-  const [roleList, setRoleList] = useState<RoleItem[]>([]);
+  const [roleList, setRoleList] = useState<RoleItem[]>(DEFAULT_SYSTEM_ROLES);
   const [eventList, setEventList] = useState<EventItem[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(false);
 
@@ -338,17 +388,20 @@ export default function App() {
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data) {
-          const mappedRoles = json.data.map((r: RoleItem) => ({
+        const data = json.data || json.Data || (Array.isArray(json) ? json : null);
+        if (data && Array.isArray(data) && data.length > 0) {
+          const mappedRoles = data.map((r: RoleItem) => ({
             ...r,
             name: decodeVietnamese(r.name)
           }));
           setRoleList(mappedRoles);
+          return;
         }
       }
     } catch {
       // Error fetching roles
     }
+    setRoleList(prev => prev.length > 0 ? prev : DEFAULT_SYSTEM_ROLES);
   };
 
   const fetchEvents = async () => {
@@ -388,7 +441,7 @@ export default function App() {
         const authRes = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ Username: username, UserName: username, password: password })
+          body: JSON.stringify({ userName: username, password: password })
         });
 
         const data = await authRes.json();
@@ -1232,7 +1285,24 @@ export default function App() {
               )}
             </div>
 
-            {/* Menu Item 4: Events (RabbitMQ) */}
+            {/* Menu Item 4: Departments / Organization Structure */}
+            <div
+              onClick={() => setActiveTab('departments')}
+              className={`menu-nav-item ${activeTab === 'departments' ? 'active' : ''}`}
+              title="Cơ Cấu Tổ Chức & Sơ Đồ Phòng Ban"
+            >
+              <Network size={18} style={{ color: activeTab === 'departments' ? '#005baa' : '#6b7280', flexShrink: 0 }} />
+              {!isSidebarCollapsed && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <span>Cơ Cấu Tổ Chức</span>
+                  <span style={{ fontSize: '10.5px', background: activeTab === 'departments' ? '#bae0ff' : '#f3f4f6', color: activeTab === 'departments' ? '#005baa' : '#6b7280', padding: '1px 6px', borderRadius: '10px', fontWeight: 600 }}>
+                    Phòng ban
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Menu Item 5: Events (RabbitMQ) */}
             <div
               onClick={() => setActiveTab('events')}
               className={`menu-nav-item ${activeTab === 'events' ? 'active' : ''}`}
@@ -1681,43 +1751,75 @@ export default function App() {
                                   </button>
 
                                   {isDropdownOpen && (
-                                    <div className="action-dropdown-menu">
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenUserDetail(u)}
+                                    <>
+                                      <div
+                                        style={{ position: 'fixed', inset: 0, zIndex: 1040 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenUserDropdownId(null);
+                                        }}
+                                      />
+                                      <div
+                                        className={`action-dropdown-menu ${index >= paginatedUsers.length - 2 ? 'drop-up' : ''}`}
+                                        style={{ zIndex: 1050 }}
                                       >
-                                        <Eye size={14} style={{ color: '#005baa' }} />
-                                        <span>Chi tiết</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenEditUser(u)}
-                                      >
-                                        <Edit size={14} style={{ color: '#1d39c4' }} />
-                                        <span>Chỉnh sửa</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenAssignRoles(u)}
-                                      >
-                                        <Shield size={14} style={{ color: '#52c41a' }} />
-                                        <span>Phân nhóm quyền</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenChangePass(u)}
-                                      >
-                                        <Lock size={14} style={{ color: '#d48806' }} />
-                                        <span>Đổi mật khẩu</span>
-                                      </button>
-                                      <button
-                                        className={`action-dropdown-item ${u.isActive ? 'danger' : ''}`}
-                                        onClick={() => setConfirmToggleUser(u)}
-                                      >
-                                        {u.isActive ? <Lock size={14} /> : <Unlock size={14} style={{ color: '#52c41a' }} />}
-                                        <span>{u.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}</span>
-                                      </button>
-                                    </div>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenUserDetail(u);
+                                          }}
+                                        >
+                                          <Eye size={14} style={{ color: '#005baa' }} />
+                                          <span>Chi tiết</span>
+                                        </button>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenEditUser(u);
+                                          }}
+                                        >
+                                          <Edit size={14} style={{ color: '#1d39c4' }} />
+                                          <span>Chỉnh sửa</span>
+                                        </button>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenAssignRoles(u);
+                                          }}
+                                        >
+                                          <Shield size={14} style={{ color: '#52c41a' }} />
+                                          <span>Phân nhóm quyền</span>
+                                        </button>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenChangePass(u);
+                                          }}
+                                        >
+                                          <Lock size={14} style={{ color: '#d48806' }} />
+                                          <span>Đổi mật khẩu</span>
+                                        </button>
+                                        <button
+                                          className={`action-dropdown-item ${u.isActive ? 'danger' : ''}`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            setConfirmToggleUser(u);
+                                          }}
+                                        >
+                                          {u.isActive ? <Lock size={14} /> : <Unlock size={14} style={{ color: '#52c41a' }} />}
+                                          <span>{u.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}</span>
+                                        </button>
+                                      </div>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -2008,31 +2110,55 @@ export default function App() {
                                   </button>
 
                                   {isDropdownOpen && (
-                                    <div className="action-dropdown-menu">
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenRoleDetail(r)}
+                                    <>
+                                      <div
+                                        style={{ position: 'fixed', inset: 0, zIndex: 1040 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenRoleDropdownId(null);
+                                        }}
+                                      />
+                                      <div
+                                        className={`action-dropdown-menu ${index >= paginatedRoles.length - 2 ? 'drop-up' : ''}`}
+                                        style={{ zIndex: 1050 }}
                                       >
-                                        <Eye size={14} style={{ color: '#005baa' }} />
-                                        <span>Chi tiết</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenEditRole(r)}
-                                      >
-                                        <Edit size={14} style={{ color: '#1d39c4' }} />
-                                        <span>Chỉnh sửa</span>
-                                      </button>
-                                      {r.code !== 'ADMIN' && (
                                         <button
-                                          className="action-dropdown-item danger"
-                                          onClick={() => setConfirmDeleteRole(r)}
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenRoleDropdownId(null);
+                                            handleOpenRoleDetail(r);
+                                          }}
                                         >
-                                          <Trash2 size={14} />
-                                          <span>Xóa nhóm quyền</span>
+                                          <Eye size={14} style={{ color: '#005baa' }} />
+                                          <span>Chi tiết</span>
                                         </button>
-                                      )}
-                                    </div>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenRoleDropdownId(null);
+                                            handleOpenEditRole(r);
+                                          }}
+                                        >
+                                          <Edit size={14} style={{ color: '#1d39c4' }} />
+                                          <span>Chỉnh sửa</span>
+                                        </button>
+                                        {r.code !== 'ADMIN' && (
+                                          <button
+                                            className="action-dropdown-item danger"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenRoleDropdownId(null);
+                                              setConfirmDeleteRole(r);
+                                            }}
+                                          >
+                                            <Trash2 size={14} />
+                                            <span>Xóa nhóm quyền</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -2301,6 +2427,13 @@ export default function App() {
             </div>
           )}
 
+          {/* ==================================================== */}
+          {/* TAB 4: CƠ CẤU TỔ CHỨC & PHÒNG BAN (MASTER DATA)      */}
+          {/* ==================================================== */}
+          {activeTab === 'departments' && (
+            <DepartmentsTab token={token} notify={notify} onRefreshEvents={fetchEvents} />
+          )}
+
         </main>
       </div>
 
@@ -2309,13 +2442,13 @@ export default function App() {
       {/* ==================================================== */}
 
       {/* MODAL 1: Thêm mới người dùng */}
-      {isCreateUserModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '540px', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}>
+      {isCreateUserModalOpen && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '560px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <UserPlus size={20} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Thêm Mới Người Dùng Hệ Thống</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>Thêm Mới Người Dùng Hệ Thống</h3>
               </div>
               <button onClick={() => setIsCreateUserModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8c8c8c' }}>
                 <X size={18} />
@@ -2396,8 +2529,8 @@ export default function App() {
                   Phân quyền vai trò ban đầu:
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#f9fafb', padding: '12px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                  {roleList.map((r) => (
-                    <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#374151', cursor: 'pointer' }}>
+                  {((roleList && roleList.length > 0) ? roleList : DEFAULT_SYSTEM_ROLES).map((r) => (
+                    <label key={r.id || r.code} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#374151', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={formRoles.includes(r.code)}
@@ -2410,6 +2543,7 @@ export default function App() {
                         }}
                       />
                       <span style={{ fontWeight: 600, color: '#005baa' }}>{r.code}</span>
+                      <span style={{ fontSize: '11.5px', color: '#6b7280' }}>({r.name})</span>
                     </label>
                   ))}
                 </div>
@@ -2425,17 +2559,18 @@ export default function App() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 2: Tạo tài khoản nhanh */}
-      {isQuickCreateModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '24px' }}>
+      {isQuickCreateModalOpen && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '460px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <UserPlus size={18} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>Tạo Nhanh Tài Khoản Người Dùng</h3>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>Tạo Nhanh Tài Khoản Người Dùng</h3>
               </div>
               <button onClick={() => setIsQuickCreateModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8c8c8c' }}>
                 <X size={18} />
@@ -2497,17 +2632,18 @@ export default function App() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 3: Chỉnh sửa người dùng */}
-      {isEditUserModalOpen && selectedUser && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+      {isEditUserModalOpen && selectedUser && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '500px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Edit size={18} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>
                   Cập Nhật Người Dùng: <code>{selectedUser.userName}</code>
                 </h3>
               </div>
@@ -2575,17 +2711,18 @@ export default function App() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 4: Phân nhóm quyền */}
-      {isAssignRolesModalOpen && selectedUser && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+      {isAssignRolesModalOpen && selectedUser && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '500px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Shield size={18} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>
                   Phân Nhóm Quyền: <code>{selectedUser.userName}</code>
                 </h3>
               </div>
@@ -2594,38 +2731,101 @@ export default function App() {
               </button>
             </div>
 
-            <div style={{ marginBottom: '16px', fontSize: '13px', color: '#6b7280' }}>
-              Chọn các vai trò để phân quyền truy cập cho tài khoản <strong>{selectedUser.fullName}</strong>. Thay đổi sẽ tự động được gửi qua <strong>RabbitMQ</strong>.
+            <div style={{ marginBottom: '14px', fontSize: '13px', color: '#6b7280' }}>
+              Chọn các vai trò để phân quyền truy cập cho tài khoản <strong>{selectedUser.fullName || selectedUser.userName}</strong>. Thay đổi sẽ tự động được gửi qua <strong>RabbitMQ</strong>.
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', background: '#f9fafb', padding: '14px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              {roleList.map((r) => (
-                <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#374151', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={formRoles.includes(r.code)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormRoles([...formRoles, r.code]);
-                      } else {
+            {/* Quick Select Buttons */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px' }}
+                onClick={() => {
+                  const effective = (roleList && roleList.length > 0) ? roleList : DEFAULT_SYSTEM_ROLES;
+                  setFormRoles(effective.map(r => r.code));
+                }}
+              >
+                Chọn tất cả
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px' }}
+                onClick={() => setFormRoles([])}
+              >
+                Bỏ chọn hết
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px', color: '#135200', borderColor: '#b7eb8f', background: '#f6ffed' }}
+                onClick={() => {
+                  if (!formRoles.includes('ROLE_KPI')) setFormRoles([...formRoles, 'ROLE_KPI']);
+                }}
+              >
+                + Đánh giá KPI
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px', color: '#003eb3', borderColor: '#adc6ff', background: '#f0f5ff' }}
+                onClick={() => {
+                  if (!formRoles.includes('ROLE_TAISAN')) setFormRoles([...formRoles, 'ROLE_TAISAN']);
+                }}
+              >
+                + Quản lý Tài sản
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', maxHeight: '280px', overflowY: 'auto', background: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              {((roleList && roleList.length > 0) ? roleList : DEFAULT_SYSTEM_ROLES).map((r) => {
+                const isChecked = formRoles.includes(r.code);
+                return (
+                  <div
+                    key={r.id || r.code}
+                    onClick={() => {
+                      if (isChecked) {
                         setFormRoles(formRoles.filter(code => code !== r.code));
+                      } else {
+                        setFormRoles([...formRoles, r.code]);
                       }
                     }}
-                  />
-                  <span style={{
-                    fontWeight: 700,
-                    fontSize: '11.5px',
-                    color: '#005baa',
-                    backgroundColor: '#e6f4ff',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    border: '1px solid #91caff'
-                  }}>
-                    {r.code}
-                  </span>
-                  <span>{r.name}</span>
-                </label>
-              ))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 12px',
+                      backgroundColor: isChecked ? '#e6f4ff' : '#ffffff',
+                      border: `1px solid ${isChecked ? '#91caff' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => { }} // Controlled via parent div onClick
+                      style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                    />
+                    <span style={{
+                      fontWeight: 700,
+                      fontSize: '11.5px',
+                      color: isChecked ? '#005baa' : '#4b5563',
+                      backgroundColor: isChecked ? '#ffffff' : '#f3f4f6',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      border: `1px solid ${isChecked ? '#91caff' : '#d1d5db'}`
+                    }}>
+                      {r.code}
+                    </span>
+                    <span style={{ fontSize: '13px', color: isChecked ? '#003a8c' : '#374151', fontWeight: isChecked ? 500 : 400 }}>
+                      {r.name}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>
@@ -2637,17 +2837,18 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 5: Đổi mật khẩu */}
-      {isChangePassModalOpen && selectedUser && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px' }}>
+      {isChangePassModalOpen && selectedUser && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '440px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Key size={18} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>
                   Đổi Mật Khẩu: <code>{selectedUser.userName}</code>
                 </h3>
               </div>
@@ -2679,17 +2880,18 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 6: Chi tiết người dùng */}
-      {isUserDetailModalOpen && selectedUser && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '520px', padding: '24px' }}>
+      {isUserDetailModalOpen && selectedUser && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '540px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Info size={20} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Thông Tin Chi Tiết Tài Khoản</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>Thông Tin Chi Tiết Tài Khoản</h3>
               </div>
               <button onClick={() => setIsUserDetailModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8c8c8c' }}>
                 <X size={18} />
@@ -2747,16 +2949,17 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* POPCONFIRM: Xác nhận Khóa / Mở khóa User */}
-      {confirmToggleUser && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px' }}>
+      {confirmToggleUser && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '100px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '440px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
               <AlertCircle size={22} style={{ color: confirmToggleUser.isActive ? '#ff4d4f' : '#52c41a' }} />
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>
                 {confirmToggleUser.isActive ? 'Xác nhận khóa tài khoản' : 'Xác nhận mở khóa tài khoản'}
               </h3>
             </div>
@@ -2778,7 +2981,8 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ==================================================== */}
@@ -2786,13 +2990,13 @@ export default function App() {
       {/* ==================================================== */}
 
       {/* MODAL 7: Thêm mới vai trò */}
-      {isCreateRoleModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+      {isCreateRoleModalOpen && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '500px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Shield size={18} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>Thêm Mới Nhóm Quyền</h3>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>Thêm Mới Nhóm Quyền</h3>
               </div>
               <button onClick={() => setIsCreateRoleModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8c8c8c' }}>
                 <X size={18} />
@@ -2855,17 +3059,18 @@ export default function App() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 8: Chỉnh sửa vai trò */}
-      {isEditRoleModalOpen && selectedRole && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+      {isEditRoleModalOpen && selectedRole && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '500px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Edit size={18} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>
                   Chỉnh Sửa: <code>{selectedRole.code}</code>
                 </h3>
               </div>
@@ -2926,17 +3131,18 @@ export default function App() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 9: Chi tiết vai trò */}
-      {isRoleDetailModalOpen && selectedRole && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '480px', padding: '24px' }}>
+      {isRoleDetailModalOpen && selectedRole && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '500px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', borderBottom: '1px solid #f0f0f0', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Info size={20} style={{ color: '#005baa' }} />
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Chi Tiết Nhóm Quyền</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>Chi Tiết Nhóm Quyền</h3>
               </div>
               <button onClick={() => setIsRoleDetailModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8c8c8c' }}>
                 <X size={18} />
@@ -2975,16 +3181,17 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* POPCONFIRM: Xác nhận Xóa vai trò */}
-      {confirmDeleteRole && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '420px', padding: '24px' }}>
+      {confirmDeleteRole && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '100px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '440px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
               <AlertCircle size={22} style={{ color: '#ff4d4f' }} />
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>
                 Xác nhận xóa nhóm quyền
               </h3>
             </div>
@@ -3006,17 +3213,18 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL 10: Chi tiết Event RabbitMQ */}
-      {isEventModalOpen && selectedEvent && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div className="corporate-card animate-fade-in" style={{ width: '100%', maxWidth: '600px', padding: '24px' }}>
+      {isEventModalOpen && selectedEvent && createPortal(
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.45)', overflowY: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 40px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: '640px', backgroundColor: '#ffffff', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Zap size={18} style={{ color: '#d97706' }} />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>
                   Chi Tiết Sự Kiện: <code>{selectedEvent.eventType}</code>
                 </h3>
               </div>
@@ -3046,7 +3254,8 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

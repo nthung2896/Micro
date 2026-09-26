@@ -32,6 +32,7 @@ namespace Hinet.Api
                 options.Filters.Add<LogActionFilter>();
             });
             services.AddHttpClient();
+            services.AddHttpClient<Hinet.Service.Common.IdentityClient.IIdentityServiceClient, Hinet.Service.Common.IdentityClient.IdentityServiceClient>();
             services.AddHttpClient("MOITSigner", client =>
             {
                 client.BaseAddress = new Uri("http://localhost:14005");

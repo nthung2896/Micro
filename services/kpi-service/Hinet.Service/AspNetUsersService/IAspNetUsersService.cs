@@ -25,5 +25,6 @@ namespace Hinet.Service.AspNetUsersService
         Task<(bool IsSuccess, AppUser? Data, List<string> Errors)> CreateAccount(AspNetUsersRequest model);
         Task<(bool IsSuccess, string Message, List<DropdownOption>? Data)> GetCanBoByDonViId(Guid donViId);
         Task<int> SetDefaultRoleCaNhanForUsersWithoutRole();
+        Task<(int Total, int Success, List<string> Errors)> SyncAllUsersToIdentity();
     }
 }

@@ -1,8 +1,14 @@
 <Solution>
   <Folder Name="/services/">
     <Project Path="services/api-gateway/api-gateway.csproj" />
-    <Project Path="services/identity-service/identity-service.csproj" />
     <Project Path="services/room-service/room-service.csproj" />
+  </Folder>
+  <Folder Name="/services/identity-service/">
+    <Project Path="services/identity-service/Hinet.Api/Hinet.Api.csproj" />
+    <Project Path="services/identity-service/Hinet.Model/Hinet.Model.csproj" />
+    <Project Path="services/identity-service/Hinet.Repository/Hinet.Repository.csproj" />
+    <Project Path="services/identity-service/Hinet.Service/Hinet.Service.csproj" />
+    <Project Path="services/identity-service/CommonHelper/CommonHelper.csproj" />
   </Folder>
   <Folder Name="/services/asset-service/">
     <Project Path="services/asset-service/Hinet.Api/Hinet.Api.csproj" />
