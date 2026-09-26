@@ -23,7 +23,8 @@ builder.Services.AddCors(options =>
 
 // 2. DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Server=localhost;Database=Identity_DB;User Id=sa;Password=Hung@2025;MultipleActiveResultSets=true;Encrypt=False;TrustServerCertificate=True;";
+    ?? builder.Configuration["Connections:DefaultConnection"]
+    ?? "Server=192.168.1.100,1357;Database=Identity_DB;User ID=sa;Password=Hinet@12345;TrustServerCertificate=True;MultipleActiveResultSets=True;";
 
 builder.Services.AddDbContext<IdentityContext>(options =>
     options.UseSqlServer(connectionString));
