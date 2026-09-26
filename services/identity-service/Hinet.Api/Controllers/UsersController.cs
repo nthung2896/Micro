@@ -303,6 +303,41 @@ namespace Hinet.Api.Controllers
                         SourceService = "identity-service"
                     });
                 }
+                else
+                {
+                    // User already exists in Identity_DB: ensure requested roles are assigned
+                    foreach (var code in roleCodes)
+                    {
+                        var role = await _dbContext.Role.FirstOrDefaultAsync(r => r.Code == code && !r.IsDeleted);
+                        if (role == null)
+                        {
+                            role = new Role
+                            {
+                                Id = Guid.NewGuid(),
+                                Code = code,
+                                Name = code,
+                                Type = "CUSTOM",
+                                IsActive = true,
+                                CreatedDate = DateTime.UtcNow
+                            };
+                            _dbContext.Role.Add(role);
+                            await _dbContext.SaveChangesAsync();
+                        }
+
+                        var hasRole = await _dbContext.UserRole.AnyAsync(ur => ur.UserId == user.Id && ur.RoleId == role.Id && !ur.IsDeleted);
+                        if (!hasRole)
+                        {
+                            _dbContext.UserRole.Add(new UserRole
+                            {
+                                Id = Guid.NewGuid(),
+                                UserId = user.Id,
+                                RoleId = role.Id,
+                                CreatedDate = DateTime.UtcNow
+                            });
+                        }
+                    }
+                    await _dbContext.SaveChangesAsync();
+                }
 
                 results.Add(new
                 {
@@ -312,7 +347,8 @@ namespace Hinet.Api.Controllers
                     email = user.Email,
                     phoneNumber = user.PhoneNumber,
                     roles = roleCodes,
-                    isNew = isNew
+                    isNew = isNew,
+                    success = true
                 });
             }
 

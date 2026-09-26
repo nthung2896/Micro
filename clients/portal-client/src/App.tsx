@@ -177,9 +177,27 @@ const APPS: AppItem[] = [
 
 const API_BASE = 'http://localhost:5001/api/auth';
 
+// Danh sách vai trò mặc định cho hệ sinh thái Microservices
+const DEFAULT_SYSTEM_ROLES: RoleItem[] = [
+  { id: '1', code: 'ADMIN', name: 'Quản trị viên toàn hệ thống', type: 'SYSTEM', isActive: true },
+  { id: '2', code: 'ROLE_TAISAN', name: 'Cán bộ Quản lý Tài sản', type: 'ASSET', isActive: true },
+  { id: '3', code: 'ROLE_KPI', name: 'Cán bộ Đánh giá KPI & Thi đua', type: 'KPI', isActive: true },
+  { id: '4', code: 'ROLE_ROOM', name: 'Quản lý Phòng trọ & Ví tiền', type: 'ROOM', isActive: true },
+  { id: '5', code: 'MANAGER', name: 'Quản lý bộ phận', type: 'GENERAL', isActive: true },
+  { id: '6', code: 'USER', name: 'Người dùng thông thường', type: 'GENERAL', isActive: true }
+];
+
 export default function App() {
-  // Auth State - Tự động xóa token giả/cũ (sso_jwt_...) để đảm bảo luôn dùng JWT chuẩn HMAC-SHA256
+  // Auth State - Tự động xóa token giả/cũ (sso_jwt_...) hoặc khi có yêu cầu Single Sign-Out (SSO Logout)
   const [token, setToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'logout' || params.get('logout') === 'true') {
+        localStorage.removeItem('sso_portal_token');
+        localStorage.removeItem('sso_portal_user');
+        return null;
+      }
+    }
     const saved = localStorage.getItem('sso_portal_token');
     if (saved && (saved.startsWith('sso_jwt_') || saved.length < 50)) {
       localStorage.removeItem('sso_portal_token');
@@ -189,11 +207,40 @@ export default function App() {
     return saved;
   });
   const [user, setUser] = useState<{ username: string; fullName: string; role: string; roles: string[] } | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('action') === 'logout' || params.get('logout') === 'true') {
+        return null;
+      }
+    }
     const savedToken = localStorage.getItem('sso_portal_token');
     if (!savedToken) return null;
     const saved = localStorage.getItem('sso_portal_user');
     return saved ? JSON.parse(saved) : null;
   });
+
+  // Single Sign-Out Handler từ service con
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isLogout = params.get('action') === 'logout' || params.get('logout') === 'true';
+    const redirectUri = params.get('redirect_uri');
+
+    if (isLogout) {
+      localStorage.removeItem('sso_portal_token');
+      localStorage.removeItem('sso_portal_user');
+      setToken(null);
+      setUser(null);
+
+      if (redirectUri && !redirectUri.includes('3000')) {
+        // Chuyển hướng trở lại service con sau khi đã xóa sạch SSO session
+        window.location.href = redirectUri;
+      } else {
+        window.history.replaceState({}, document.title, window.location.pathname);
+        setToastMsg({ text: 'Đã đăng xuất toàn bộ hệ thống SSO thành công', type: 'success' });
+        setTimeout(() => setToastMsg(null), 4000);
+      }
+    }
+  }, []);
 
   // Layout Sidebar Collapse State
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -210,7 +257,7 @@ export default function App() {
 
   // Master Data States
   const [userList, setUserList] = useState<UserItem[]>([]);
-  const [roleList, setRoleList] = useState<RoleItem[]>([]);
+  const [roleList, setRoleList] = useState<RoleItem[]>(DEFAULT_SYSTEM_ROLES);
   const [eventList, setEventList] = useState<EventItem[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(false);
 
@@ -341,17 +388,20 @@ export default function App() {
       });
       if (res.ok) {
         const json = await res.json();
-        if (json.success && json.data) {
-          const mappedRoles = json.data.map((r: RoleItem) => ({
+        const data = json.data || json.Data || (Array.isArray(json) ? json : null);
+        if (data && Array.isArray(data) && data.length > 0) {
+          const mappedRoles = data.map((r: RoleItem) => ({
             ...r,
             name: decodeVietnamese(r.name)
           }));
           setRoleList(mappedRoles);
+          return;
         }
       }
     } catch {
       // Error fetching roles
     }
+    setRoleList(prev => prev.length > 0 ? prev : DEFAULT_SYSTEM_ROLES);
   };
 
   const fetchEvents = async () => {
@@ -1702,43 +1752,75 @@ export default function App() {
                                   </button>
 
                                   {isDropdownOpen && (
-                                    <div className="action-dropdown-menu">
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenUserDetail(u)}
+                                    <>
+                                      <div 
+                                        style={{ position: 'fixed', inset: 0, zIndex: 1040 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenUserDropdownId(null);
+                                        }}
+                                      />
+                                      <div 
+                                        className={`action-dropdown-menu ${index >= paginatedUsers.length - 2 ? 'drop-up' : ''}`}
+                                        style={{ zIndex: 1050 }}
                                       >
-                                        <Eye size={14} style={{ color: '#005baa' }} />
-                                        <span>Chi tiết</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenEditUser(u)}
-                                      >
-                                        <Edit size={14} style={{ color: '#1d39c4' }} />
-                                        <span>Chỉnh sửa</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenAssignRoles(u)}
-                                      >
-                                        <Shield size={14} style={{ color: '#52c41a' }} />
-                                        <span>Phân nhóm quyền</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenChangePass(u)}
-                                      >
-                                        <Lock size={14} style={{ color: '#d48806' }} />
-                                        <span>Đổi mật khẩu</span>
-                                      </button>
-                                      <button
-                                        className={`action-dropdown-item ${u.isActive ? 'danger' : ''}`}
-                                        onClick={() => setConfirmToggleUser(u)}
-                                      >
-                                        {u.isActive ? <Lock size={14} /> : <Unlock size={14} style={{ color: '#52c41a' }} />}
-                                        <span>{u.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}</span>
-                                      </button>
-                                    </div>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenUserDetail(u);
+                                          }}
+                                        >
+                                          <Eye size={14} style={{ color: '#005baa' }} />
+                                          <span>Chi tiết</span>
+                                        </button>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenEditUser(u);
+                                          }}
+                                        >
+                                          <Edit size={14} style={{ color: '#1d39c4' }} />
+                                          <span>Chỉnh sửa</span>
+                                        </button>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenAssignRoles(u);
+                                          }}
+                                        >
+                                          <Shield size={14} style={{ color: '#52c41a' }} />
+                                          <span>Phân nhóm quyền</span>
+                                        </button>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            handleOpenChangePass(u);
+                                          }}
+                                        >
+                                          <Lock size={14} style={{ color: '#d48806' }} />
+                                          <span>Đổi mật khẩu</span>
+                                        </button>
+                                        <button
+                                          className={`action-dropdown-item ${u.isActive ? 'danger' : ''}`}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenUserDropdownId(null);
+                                            setConfirmToggleUser(u);
+                                          }}
+                                        >
+                                          {u.isActive ? <Lock size={14} /> : <Unlock size={14} style={{ color: '#52c41a' }} />}
+                                          <span>{u.isActive ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}</span>
+                                        </button>
+                                      </div>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -2029,31 +2111,55 @@ export default function App() {
                                   </button>
 
                                   {isDropdownOpen && (
-                                    <div className="action-dropdown-menu">
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenRoleDetail(r)}
+                                    <>
+                                      <div 
+                                        style={{ position: 'fixed', inset: 0, zIndex: 1040 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenRoleDropdownId(null);
+                                        }}
+                                      />
+                                      <div 
+                                        className={`action-dropdown-menu ${index >= paginatedRoles.length - 2 ? 'drop-up' : ''}`}
+                                        style={{ zIndex: 1050 }}
                                       >
-                                        <Eye size={14} style={{ color: '#005baa' }} />
-                                        <span>Chi tiết</span>
-                                      </button>
-                                      <button
-                                        className="action-dropdown-item"
-                                        onClick={() => handleOpenEditRole(r)}
-                                      >
-                                        <Edit size={14} style={{ color: '#1d39c4' }} />
-                                        <span>Chỉnh sửa</span>
-                                      </button>
-                                      {r.code !== 'ADMIN' && (
                                         <button
-                                          className="action-dropdown-item danger"
-                                          onClick={() => setConfirmDeleteRole(r)}
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenRoleDropdownId(null);
+                                            handleOpenRoleDetail(r);
+                                          }}
                                         >
-                                          <Trash2 size={14} />
-                                          <span>Xóa nhóm quyền</span>
+                                          <Eye size={14} style={{ color: '#005baa' }} />
+                                          <span>Chi tiết</span>
                                         </button>
-                                      )}
-                                    </div>
+                                        <button
+                                          className="action-dropdown-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenRoleDropdownId(null);
+                                            handleOpenEditRole(r);
+                                          }}
+                                        >
+                                          <Edit size={14} style={{ color: '#1d39c4' }} />
+                                          <span>Chỉnh sửa</span>
+                                        </button>
+                                        {r.code !== 'ADMIN' && (
+                                          <button
+                                            className="action-dropdown-item danger"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setOpenRoleDropdownId(null);
+                                              setConfirmDeleteRole(r);
+                                            }}
+                                          >
+                                            <Trash2 size={14} />
+                                            <span>Xóa nhóm quyền</span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </>
                                   )}
                                 </div>
                               </td>
@@ -2424,8 +2530,8 @@ export default function App() {
                   Phân quyền vai trò ban đầu:
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: '#f9fafb', padding: '12px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                  {roleList.map((r) => (
-                    <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#374151', cursor: 'pointer' }}>
+                  {((roleList && roleList.length > 0) ? roleList : DEFAULT_SYSTEM_ROLES).map((r) => (
+                    <label key={r.id || r.code} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#374151', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={formRoles.includes(r.code)}
@@ -2438,6 +2544,7 @@ export default function App() {
                         }}
                       />
                       <span style={{ fontWeight: 600, color: '#005baa' }}>{r.code}</span>
+                      <span style={{ fontSize: '11.5px', color: '#6b7280' }}>({r.name})</span>
                     </label>
                   ))}
                 </div>
@@ -2625,38 +2732,101 @@ export default function App() {
               </button>
             </div>
 
-            <div style={{ marginBottom: '16px', fontSize: '13px', color: '#6b7280' }}>
-              Chọn các vai trò để phân quyền truy cập cho tài khoản <strong>{selectedUser.fullName}</strong>. Thay đổi sẽ tự động được gửi qua <strong>RabbitMQ</strong>.
+            <div style={{ marginBottom: '14px', fontSize: '13px', color: '#6b7280' }}>
+              Chọn các vai trò để phân quyền truy cập cho tài khoản <strong>{selectedUser.fullName || selectedUser.userName}</strong>. Thay đổi sẽ tự động được gửi qua <strong>RabbitMQ</strong>.
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px', background: '#f9fafb', padding: '14px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-              {roleList.map((r) => (
-                <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#374151', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={formRoles.includes(r.code)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormRoles([...formRoles, r.code]);
-                      } else {
+            {/* Quick Select Buttons */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px' }}
+                onClick={() => {
+                  const effective = (roleList && roleList.length > 0) ? roleList : DEFAULT_SYSTEM_ROLES;
+                  setFormRoles(effective.map(r => r.code));
+                }}
+              >
+                Chọn tất cả
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px' }}
+                onClick={() => setFormRoles([])}
+              >
+                Bỏ chọn hết
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px', color: '#135200', borderColor: '#b7eb8f', background: '#f6ffed' }}
+                onClick={() => {
+                  if (!formRoles.includes('ROLE_KPI')) setFormRoles([...formRoles, 'ROLE_KPI']);
+                }}
+              >
+                + Đánh giá KPI
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ padding: '3px 8px', fontSize: '11.5px', color: '#003eb3', borderColor: '#adc6ff', background: '#f0f5ff' }}
+                onClick={() => {
+                  if (!formRoles.includes('ROLE_TAISAN')) setFormRoles([...formRoles, 'ROLE_TAISAN']);
+                }}
+              >
+                + Quản lý Tài sản
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', maxHeight: '280px', overflowY: 'auto', background: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              {((roleList && roleList.length > 0) ? roleList : DEFAULT_SYSTEM_ROLES).map((r) => {
+                const isChecked = formRoles.includes(r.code);
+                return (
+                  <div
+                    key={r.id || r.code}
+                    onClick={() => {
+                      if (isChecked) {
                         setFormRoles(formRoles.filter(code => code !== r.code));
+                      } else {
+                        setFormRoles([...formRoles, r.code]);
                       }
                     }}
-                  />
-                  <span style={{
-                    fontWeight: 700,
-                    fontSize: '11.5px',
-                    color: '#005baa',
-                    backgroundColor: '#e6f4ff',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    border: '1px solid #91caff'
-                  }}>
-                    {r.code}
-                  </span>
-                  <span>{r.name}</span>
-                </label>
-              ))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '8px 12px',
+                      backgroundColor: isChecked ? '#e6f4ff' : '#ffffff',
+                      border: `1px solid ${isChecked ? '#91caff' : '#e5e7eb'}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}} // Controlled via parent div onClick
+                      style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+                    />
+                    <span style={{
+                      fontWeight: 700,
+                      fontSize: '11.5px',
+                      color: isChecked ? '#005baa' : '#4b5563',
+                      backgroundColor: isChecked ? '#ffffff' : '#f3f4f6',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      border: `1px solid ${isChecked ? '#91caff' : '#d1d5db'}`
+                    }}>
+                      {r.code}
+                    </span>
+                    <span style={{ fontSize: '13px', color: isChecked ? '#003a8c' : '#374151', fontWeight: isChecked ? 500 : 400 }}>
+                      {r.name}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid #f0f0f0', paddingTop: '14px' }}>

@@ -126,7 +126,7 @@ const CreateOrUpdate: React.FC<Props> = (props: Props) => {
       form.setFieldValue("userName", "");
       form.setFieldValue("matKhau", "");
     }
-  }, [props.isOpen]);
+  }, [props.isOpen, props.user]);
 
   return (
     <Modal

@@ -130,7 +130,11 @@ namespace Hinet.Controllers
             {
                 var username = User.FindFirst("username")?.Value ?? User.Identity?.Name ?? "admin";
                 var fullName = User.FindFirst("fullName")?.Value ?? (username == "admin" ? "Quản Trị Viên Hệ Thống" : "Cán Bộ " + username);
-                var roles = User.FindAll(ClaimTypes.Role).Select(r => r.Value).ToList();
+                var roles = User.Claims
+                    .Where(c => c.Type == ClaimTypes.Role || c.Type == "role" || c.Type == "roles")
+                    .Select(r => r.Value)
+                    .Where(v => !string.IsNullOrWhiteSpace(v))
+                    .ToList();
                 result = new AppUserDto
                 {
                     Id = UserId ?? Guid.NewGuid(),
@@ -140,6 +144,18 @@ namespace Hinet.Controllers
                     ListRole = roles.Count > 0 ? roles : new List<string> { "Admin" },
                     Type = "Admin"
                 };
+            }
+
+            // Luôn gộp quyền từ JWT Token SSO đã được Identity Service ký cấp
+            var jwtRoles = User.Claims
+                .Where(c => c.Type == ClaimTypes.Role || c.Type == "role" || c.Type == "roles")
+                .Select(c => c.Value)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .ToList();
+            if (jwtRoles.Count > 0)
+            {
+                var existingRoles = result.ListRole ?? new List<string>();
+                result.ListRole = existingRoles.Union(jwtRoles, StringComparer.OrdinalIgnoreCase).ToList();
             }
 
             if (result.MenuData == null || result.MenuData.Count == 0)

@@ -81,7 +81,8 @@ namespace Hinet.Controllers
                 }
                 catch (Exception ex)
                 {
-                    return DataResponse<AppUser>.False("Lỗi hệ thống", new string[] { ex.Message });
+                    var msg = ex.InnerException != null ? $"{ex.Message} -> {ex.InnerException.Message}" : ex.Message;
+                    return DataResponse<AppUser>.False("Lỗi hệ thống: " + msg);
                 }
             }
 
@@ -619,6 +620,33 @@ namespace Hinet.Controllers
                 response.Message = ex.Message;
             }
             return response;
+        }
+
+        /// <summary>
+        /// API đồng bộ toàn bộ tài khoản từ KPI Service sang Identity Service
+        /// </summary>
+        [HttpPost("SyncAllUsersToIdentity")]
+        public async Task<DataResponse<object>> SyncAllUsersToIdentity()
+        {
+            try
+            {
+                var (total, success, errors) = await _aspNetUsersService.SyncAllUsersToIdentity();
+                if (errors.Any())
+                {
+                    return DataResponse<object>.False($"Đồng bộ hoàn tất một phần: {success}/{total} tài khoản thành công.", errors);
+                }
+
+                return new DataResponse<object>
+                {
+                    Status = true,
+                    Message = $"Đồng bộ thành công {success}/{total} tài khoản sang Identity Service",
+                    Data = new { Total = total, Success = success }
+                };
+            }
+            catch (Exception ex)
+            {
+                return DataResponse<object>.False("Lỗi đồng bộ: " + ex.Message);
+            }
         }
     }
 }

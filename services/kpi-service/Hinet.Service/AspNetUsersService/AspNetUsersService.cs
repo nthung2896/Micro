@@ -36,6 +36,8 @@ namespace Hinet.Service.AspNetUsersService
         private readonly IDM_NhomDanhMucRepository _dM_NhomDanhMucRepository;
         private readonly IRoleOperationRepository _roleOperationRepository;
         private readonly IOperationRepository _operationRepository;
+        private readonly Hinet.Service.Common.IdentityClient.IIdentityServiceClient _identityServiceClient;
+
         public AspNetUsersService(
             IAspNetUsersRepository aspNetUsersRepository,
             IUserRoleRepository userRoleRepository,
@@ -47,7 +49,8 @@ namespace Hinet.Service.AspNetUsersService
             IDM_DuLieuDanhMucRepository dM_DuLieuDanhMucRepository,
             IDM_NhomDanhMucRepository dM_NhomDanhMucRepository,
             IRoleOperationRepository roleOperationRepository,
-            IOperationRepository operationRepository) : base(aspNetUsersRepository)
+            IOperationRepository operationRepository,
+            Hinet.Service.Common.IdentityClient.IIdentityServiceClient identityServiceClient) : base(aspNetUsersRepository)
         {
             _userRoleRepository = userRoleRepository;
             _roleRepository = roleRepository;
@@ -59,6 +62,7 @@ namespace Hinet.Service.AspNetUsersService
             _dM_NhomDanhMucRepository = dM_NhomDanhMucRepository;
             _roleOperationRepository = roleOperationRepository;
             _operationRepository = operationRepository;
+            _identityServiceClient = identityServiceClient;
         }
 
         public async Task<PagedList<AppUserDto>> GetData(AspNetUsersSearch search, AppUserDto userDto = null)
@@ -411,6 +415,18 @@ namespace Hinet.Service.AspNetUsersService
         {
             var errors = new List<string>();
 
+            if (string.IsNullOrWhiteSpace(model.UserName))
+            {
+                if (!string.IsNullOrWhiteSpace(model.Email))
+                {
+                    model.UserName = model.Email.Split('@')[0].Trim();
+                }
+                else
+                {
+                    model.UserName = "user_" + Guid.NewGuid().ToString("N").Substring(0, 6);
+                }
+            }
+
             if (!string.IsNullOrEmpty(model.UserName))
             {
                 var isUserNameExist = await _userManager.Users.AnyAsync(x => x.UserName.ToLower() == model.UserName.ToLower());
@@ -452,14 +468,61 @@ namespace Hinet.Service.AspNetUsersService
             }
 
             var entity = _mapper.Map<AspNetUsersRequest, AppUser>(model);
+            entity.UserName = model.UserName;
             entity.Gender = int.TryParse(model.Gender, out int dd) ? dd : 1;
+            entity.CreatedDate = DateTime.Now;
+            entity.UpdatedDate = DateTime.Now;
+            entity.IsDeleted = false;
+
+            if (entity.DonViId == Guid.Empty)
+            {
+                entity.DonViId = null;
+            }
 
             if (string.IsNullOrEmpty(entity.MaCanBo))
             {
                 entity.MaCanBo = await GenerateMaCanBo();
             }
 
-            var result = await _userManager.CreateAsync(entity, model.MatKhau);
+            var defaultPassword = !string.IsNullOrWhiteSpace(model.MatKhau) ? model.MatKhau : "Password@123";
+
+            // Đồng bộ / Tạo tài khoản trên Identity Service trước
+            try
+            {
+                var roleCodes = model.VaiTro != null && model.VaiTro.Any() ? model.VaiTro : new List<string> { "ROLE_KPI" };
+                var identityReq = new Hinet.Service.Common.IdentityClient.BatchCreateUsersRequestDto
+                {
+                    DefaultPassword = defaultPassword,
+                    Users = new List<Hinet.Service.Common.IdentityClient.BatchCreateUserItemDto>
+                    {
+                        new Hinet.Service.Common.IdentityClient.BatchCreateUserItemDto
+                        {
+                            UserName = model.UserName,
+                            FullName = !string.IsNullOrWhiteSpace(model.Name) ? model.Name : model.UserName,
+                            Email = model.Email,
+                            PhoneNumber = model.PhoneNumber,
+                            Password = defaultPassword,
+                            Roles = roleCodes
+                        }
+                    }
+                };
+
+                var identityResult = await _identityServiceClient.BatchCreateUsersAsync(identityReq);
+                if (identityResult?.Data != null && identityResult.Data.Any())
+                {
+                    var firstItem = identityResult.Data.FirstOrDefault();
+                    if (firstItem != null && firstItem.UserId.HasValue)
+                    {
+                        entity.Id = firstItem.UserId.Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Identity Service offline or unreachable -> continue with generated GUID
+            }
+
+            var result = await _userManager.CreateAsync(entity, defaultPassword);
 
             if (result.Succeeded)
             {
@@ -580,6 +643,59 @@ namespace Hinet.Service.AspNetUsersService
             _userRoleRepository.AddRange(newUserRoles);
             await _userRoleRepository.SaveAsync();
             return newUserRoles.Count;
+        }
+
+        public async Task<(int Total, int Success, List<string> Errors)> SyncAllUsersToIdentity()
+        {
+            var errors = new List<string>();
+            try
+            {
+                var users = await GetQueryable().Where(x => !x.IsDeleted).ToListAsync();
+                if (!users.Any()) return (0, 0, errors);
+
+                var allUserRoles = await _userRoleRepository.GetQueryable()
+                    .Where(x => !x.IsDeleted)
+                    .Join(_roleRepository.GetQueryable().Where(r => !r.IsDeleted),
+                        ur => ur.RoleId,
+                        r => r.Id,
+                        (ur, r) => new { ur.UserId, RoleCode = r.Code })
+                    .ToListAsync();
+
+                var requestDto = new Hinet.Service.Common.IdentityClient.BatchCreateUsersRequestDto
+                {
+                    DefaultPassword = "Password@123",
+                    Users = users.Select(u =>
+                    {
+                        var roles = allUserRoles.Where(r => r.UserId == u.Id).Select(r => r.RoleCode).ToList();
+                        if (!roles.Any()) roles.Add("ROLE_KPI");
+                        if (!roles.Contains("ROLE_KPI")) roles.Add("ROLE_KPI");
+
+                        return new Hinet.Service.Common.IdentityClient.BatchCreateUserItemDto
+                        {
+                            UserName = u.UserName,
+                            FullName = !string.IsNullOrWhiteSpace(u.Name) ? u.Name : u.UserName,
+                            Email = u.Email,
+                            PhoneNumber = u.PhoneNumber,
+                            Roles = roles
+                        };
+                    }).ToList()
+                };
+
+                var response = await _identityServiceClient.BatchCreateUsersAsync(requestDto);
+                if (response != null && response.Status && response.Data != null)
+                {
+                    var successCount = response.Data.Count(x => x.Success);
+                    return (users.Count, successCount, errors);
+                }
+
+                errors.Add(response?.Message ?? "Không thể kết nối Identity Service");
+                return (users.Count, 0, errors);
+            }
+            catch (Exception ex)
+            {
+                errors.Add(ex.Message);
+                return (0, 0, errors);
+            }
         }
     }
 }

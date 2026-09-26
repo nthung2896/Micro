@@ -72,9 +72,18 @@ namespace Hinet.Service.Common.IdentityClient
             var url = $"{_baseUrl}api/auth/users/batch-create";
             try
             {
-                _logger.LogInformation("➡️ [IdentityServiceClient] Calling POST {Url} for {Count} users...", url, request.Users.Count);
-                
-                var response = await _httpClient.PostAsJsonAsync(url, request);
+                var payload = request.Users.Select(u => new
+                {
+                    UserName = u.UserName,
+                    FullName = !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.UserName,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    Password = !string.IsNullOrWhiteSpace(u.Password) ? u.Password : (request.DefaultPassword ?? "123456"),
+                    IsActive = true,
+                    RoleCodes = u.Roles != null && u.Roles.Count > 0 ? u.Roles : new List<string> { "ROLE_KPI", "USER" }
+                }).ToList();
+
+                var response = await _httpClient.PostAsJsonAsync(url, payload);
                 
                 if (response.IsSuccessStatusCode)
                 {
