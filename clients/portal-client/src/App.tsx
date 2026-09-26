@@ -1329,7 +1329,7 @@ export default function App() {
               </div>
               <div style={{ marginBottom: '2px' }}>Gateway: <strong>:5000</strong></div>
               <div style={{ marginBottom: '2px' }}>Identity: <strong>:5001</strong></div>
-              <div>RabbitMQ: <strong>192.168.0.101</strong></div>
+              <div>RabbitMQ: <strong>192.168.1.21</strong></div>
             </div>
           )}
         </aside>
@@ -2294,7 +2294,7 @@ export default function App() {
               <div className="corporate-card" style={{ padding: '20px', marginBottom: '24px', backgroundColor: '#fafbfc' }}>
                 <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Radio size={16} style={{ color: '#005baa' }} />
-                  <span>Sơ Đồ Luồng Dữ Liệu Thực Tế (RabbitMQ Broker: 192.168.0.101:5672)</span>
+                  <span>Sơ Đồ Luồng Dữ Liệu Thực Tế (RabbitMQ Broker: 192.168.1.21:5672)</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
